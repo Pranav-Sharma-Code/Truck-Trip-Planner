@@ -53,6 +53,7 @@ WSGI_APPLICATION = "config.wsgi.application"
 DATABASES = {}
 
 REST_FRAMEWORK = {
+    "EXCEPTION_HANDLER": "trips.api_errors.api_exception_handler",
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
     "DEFAULT_PARSER_CLASSES": ["rest_framework.parsers.JSONParser"],
     "DEFAULT_AUTHENTICATION_CLASSES": [],
