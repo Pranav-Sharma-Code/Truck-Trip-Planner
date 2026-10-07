@@ -15,11 +15,11 @@ Stack: **Django + Django REST Framework** (backend) and **React + Vite** (fronte
 | Part | Status |
 |---|---|
 | Backend skeleton, `/api/health/` | Done |
-| HOS engine: constants, clock, scheduler, validator, daily logs; 74 tests in total | Done |
+| HOS engine: constants, clock, scheduler, validator, daily logs; 125 tests in total | Done |
 | Daily log builder (split events into 24-hour sheets) | Done |
 | Geometry helpers and "City, ST" lookup for log remarks | Done |
-| Geocoding and routing (OpenRouteService) | Planned |
-| Trip planning API endpoint | Planned |
+| Geocoding and routing client (OpenRouteService) | Done |
+| Trip planning API endpoint (`POST /api/trips/plan/`) | Done |
 | React frontend: form, map, timeline | Planned |
 | Drawn ELD log sheets (SVG) | Planned |
 | Deployment (Vercel + Render) | Planned |
@@ -44,7 +44,7 @@ The hard part of this project is **not** the screens. It is deciding *when the d
 4. Cut the plan into calendar days and draw each day as a log sheet.
 
 The scheduler is plain Python with no Django and no network calls, so it can be tested on its own. That is why it
-has 74 unit tests and the web layer stays thin.
+has 125 unit tests and the web layer stays thin.
 
 ---
 
@@ -91,7 +91,9 @@ evm/
 │  ├─ .env.example            ✔  (copy to .env)
 │  ├─ config/                 ✔  Django settings, urls, wsgi
 │  └─ trips/
-│     ├─ urls.py, views.py    ✔  health endpoint only, for now
+│     ├─ urls.py, views.py    ✔  /api/health/ and /api/trips/plan/
+│     ├─ serializers.py       ✔  request validation
+│     ├─ api_errors.py        ✔  every error becomes {code, message, field}
 │     ├─ hos/                 ✔  THE CORE
 │     │  ├─ constants.py      ✔  every HOS number in one place
 │     │  ├─ models.py         ✔  DutyStatus, EventType, Leg, Event, TripSchedule, Violation
@@ -102,9 +104,10 @@ evm/
 │     ├─ geo/                 ✔  geometry.py (distance, point at mile N, simplify), places.py (nearest City, ST)
 │     ├─ data/us_places.csv   ✔  7,557 US places from GeoNames (see credits)
 │     ├─ scripts/ (in backend/) ✔  build_places_index.py rebuilds the CSV
-│     ├─ providers/              planned  OpenRouteService client
-│     ├─ services/planner.py     planned  glues everything together
-│     └─ tests/               ✔  test_clock, test_scheduler, test_validator, test_daily_logs, test_health
+│     ├─ providers/           ✔  base.py (types), ors.py (OpenRouteService client)
+│     ├─ exceptions.py        ✔  clean, user-facing planner errors
+│     ├─ services/planner.py  ✔  geocode -> route -> schedule -> validate -> logs -> response
+│     └─ tests/               ✔  test_clock, test_scheduler, test_validator, test_daily_logs, test_geometry, test_places, test_ors, test_api, test_health
 └─ frontend/                     planned  React + Vite
 ```
 
@@ -208,7 +211,76 @@ Two small jobs, both needed to put names on the map and on the log remarks:
   no closer place is possible. A test checks it against a brute-force search of every place.
 - **`simplify()`** thins the route line (Douglas-Peucker) so the browser is not sent tens of thousands of points.
 
-### 5.7 Tests
+### 5.7 Routing client (`trips/providers/ors.py`)
+
+Talks to [OpenRouteService](https://openrouteservice.org) (free API key, set as `ORS_API_KEY`):
+
+- **Geocoding** turns "Dallas, TX" into coordinates, restricted to the US. Results are cached in memory.
+- **Routing** uses the heavy-goods-vehicle (truck) profile and returns one leg per pair of stops (distance in miles,
+  duration in whole minutes) plus the route line. If two stops are the same place, that leg is zero-length and
+  no extra request is made.
+- **Errors** are turned into clear messages: place not found (422), no drivable route (422), trip too long for the
+  service (422), service busy or timed out (503), bad key or other failures (502). The API key is never included
+  in an error message.
+- The scheduler and API only depend on two small interfaces (`Geocoder`, `Router` in `providers/base.py`), so tests
+  use fakes and need neither the network nor a key.
+
+Known limits of the provider: the free tier caps a single route at about 6,000 km (roughly 3,700 miles) and has
+a daily request quota. Its truck profile assumes conservative speeds (a drive of about 190 miles came back as
+5 hours), so planned trips can run longer than a real driver's. The schedule is only as accurate as these times.
+
+### 5.8 The API (`trips/views.py`, `trips/services/planner.py`)
+
+`POST /api/trips/plan/`
+
+```json
+{
+  "current_location": "Los Angeles, CA",
+  "pickup_location": "Phoenix, AZ",
+  "dropoff_location": "Chicago, IL",
+  "current_cycle_used_hours": 20,
+  "start_time": "2026-10-12T06:00:00-05:00"
+}
+```
+
+`start_time` is optional but must include a UTC offset. Daily logs follow that offset (the "home terminal time"
+the FMCSA guide asks for). Without it the server uses the current time in UTC.
+
+The response has these parts:
+
+| Key | Contents |
+|---|---|
+| `locations` | the three places as resolved: label, latitude, longitude |
+| `route` | total distance and drive time, per-leg figures, the route line (thinned for the browser) |
+| `events` | every stop in order: type, duty status, times, mileage, location, **reason**, **rule**, counters afterwards |
+| `daily_logs` | one entry per day: segments, totals, miles, remarks, recap (see 5.5) |
+| `summary` | miles, driving hours, trip hours, arrival, cycle used before and after, counts of fuel/breaks/rests/restarts, number of sheets |
+| `compliance` | `ok` plus any violations the validator found (should always be empty) |
+| `warnings` | for example `restart_scheduled` when the cycle runs out |
+| `assumptions` | the assumptions behind the plan, in plain text |
+
+Errors always look like `{"code", "message", "field"?}`:
+
+| Status | `code` | When |
+|---|---|---|
+| 400 | `validation_error` | bad input; `field` names it (cycle outside 0 to 70, blank place, start time without offset) |
+| 422 | `location_not_found` | a place could not be found; `field` says which one |
+| 422 | `route_not_found` | no drivable route, or longer than the routing service allows |
+| 429 | `rate_limited` | more than 30 requests a minute from one address |
+| 502 / 503 | `routing_failed` / `provider_busy` | routing service problem, timeout or rate limit |
+
+Stops at the three places you typed use the name the geocoder returned ("Phoenix, AZ"). Stops along the way
+(breaks, rests, fuel) are described by the nearest sizeable place from the local list, for example
+"near Buckeye, AZ".
+
+Try it with the server running:
+
+```
+curl -X POST http://localhost:8000/api/trips/plan/ -H "Content-Type: application/json" ^
+  -d "{\"current_location\":\"Dallas, TX\",\"pickup_location\":\"Fort Worth, TX\",\"dropoff_location\":\"Austin, TX\",\"current_cycle_used_hours\":10}"
+```
+
+### 5.9 Tests
 
 ```
 cd backend
@@ -243,6 +315,9 @@ python manage.py runserver
 
 Check it: open `http://localhost:8000/api/health/`. It should return `{"status": "ok"}`.
 
+To plan real trips, put your OpenRouteService key in `backend/.env` as `ORS_API_KEY` (free at openrouteservice.org).
+The tests do not need it.
+
 ### Environment variables (backend)
 
 | Variable | Purpose |
@@ -257,11 +332,9 @@ Check it: open `http://localhost:8000/api/health/`. It should return `{"status":
 
 ## 7. What is planned next
 
-1. **Routing** — OpenRouteService for geocoding and a truck-based route.
-2. **API** — `POST /api/trips/plan/` returning locations, route, events, daily logs, summary and any warnings.
-3. **Frontend** — input form, map with stop markers, timeline, summary.
-4. **Log sheets** — SVG drawing of the 24-hour grid, remarks and totals, printable.
-5. **Deployment** — frontend on Vercel, backend on Render.
+1. **Frontend** — input form, map with stop markers, timeline, summary.
+2. **Log sheets** — SVG drawing of the 24-hour grid, remarks and totals, printable.
+3. **Deployment** — frontend on Vercel, backend on Render.
 
 ---
 
