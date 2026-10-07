@@ -15,9 +15,9 @@ Stack: **Django + Django REST Framework** (backend) and **React + Vite** (fronte
 | Part | Status |
 |---|---|
 | Backend skeleton, `/api/health/` | Done |
-| HOS engine: constants, clock, scheduler, validator, daily logs; 56 tests in total | Done |
+| HOS engine: constants, clock, scheduler, validator, daily logs; 74 tests in total | Done |
 | Daily log builder (split events into 24-hour sheets) | Done |
-| Geometry helpers and "City, ST" lookup for log remarks | Planned |
+| Geometry helpers and "City, ST" lookup for log remarks | Done |
 | Geocoding and routing (OpenRouteService) | Planned |
 | Trip planning API endpoint | Planned |
 | React frontend: form, map, timeline | Planned |
@@ -44,7 +44,7 @@ The hard part of this project is **not** the screens. It is deciding *when the d
 4. Cut the plan into calendar days and draw each day as a log sheet.
 
 The scheduler is plain Python with no Django and no network calls, so it can be tested on its own. That is why it
-has 56 unit tests and the web layer stays thin.
+has 74 unit tests and the web layer stays thin.
 
 ---
 
@@ -99,7 +99,9 @@ evm/
 │     │  ├─ scheduler.py      ✔  plan_trip(): builds the list of events
 │     │  ├─ validator.py      ✔  re-checks a finished plan
 │     │  └─ daily_logs.py     ✔  splits events into one 24-hour sheet per day
-│     ├─ geo/                    planned  distance helpers, nearest "City, ST"
+│     ├─ geo/                 ✔  geometry.py (distance, point at mile N, simplify), places.py (nearest City, ST)
+│     ├─ data/us_places.csv   ✔  7,557 US places from GeoNames (see credits)
+│     ├─ scripts/ (in backend/) ✔  build_places_index.py rebuilds the CSV
 │     ├─ providers/              planned  OpenRouteService client
 │     ├─ services/planner.py     planned  glues everything together
 │     └─ tests/               ✔  test_clock, test_scheduler, test_validator, test_daily_logs, test_health
@@ -193,7 +195,20 @@ It checks: overlaps and gaps, 11-hour limit, 14-hour window, 8-hour break, 70-ho
   hours still available, whether a 34-hour restart finished that day).
 - Remarks need place names. The planner will pass them in as `labels`; until then they are `None`.
 
-### 5.6 Tests
+### 5.6 Geo helpers (`trips/geo/`)
+
+Two small jobs, both needed to put names on the map and on the log remarks:
+
+- **`RoutePath.point_at(mile)`** answers "where is the truck N miles into the route?". The scheduler only knows
+  mileage, so this turns a stop at mile 640 into a latitude/longitude. The routing service's distance and the
+  polyline's own length differ slightly, so mileage is scaled to land exactly on the last point.
+- **`PlaceIndex.nearest(lat, lon)`** finds the closest US city, so each stop can be written as "City, ST" (the
+  FMCSA guide requires this for every duty status change). It reads a local file, so there are no API calls, no
+  rate limits, and results are repeatable. Places sit on a 1-degree grid and the search widens ring by ring until
+  no closer place is possible. A test checks it against a brute-force search of every place.
+- **`simplify()`** thins the route line (Douglas-Peucker) so the browser is not sent tens of thousands of points.
+
+### 5.7 Tests
 
 ```
 cd backend
@@ -203,6 +218,13 @@ cd backend
 The tests cover: break at exactly 8 hours, rest at exactly 11 hours, the 14-hour window, cycle near 70
 (69.5 h → restart mid-leg, 70 h → restart before leaving), fuel at 999 / 1,000 / 1,001 miles, pickup and drop-off
 accounting, a multi-day trip, bad input, and 300 random trips that must all pass the validator.
+
+---
+
+## Credits
+
+Place names and coordinates come from [GeoNames](https://www.geonames.org), licensed
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Map data will come from OpenStreetMap contributors.
 
 ---
 
@@ -235,12 +257,11 @@ Check it: open `http://localhost:8000/api/health/`. It should return `{"status":
 
 ## 7. What is planned next
 
-1. **Geo helpers** — distance maths, and a small offline places list so each stop can be labelled "City, ST".
-2. **Routing** — OpenRouteService for geocoding and a truck-based route.
-3. **API** — `POST /api/trips/plan/` returning locations, route, events, daily logs, summary and any warnings.
-4. **Frontend** — input form, map with stop markers, timeline, summary.
-5. **Log sheets** — SVG drawing of the 24-hour grid, remarks and totals, printable.
-6. **Deployment** — frontend on Vercel, backend on Render.
+1. **Routing** — OpenRouteService for geocoding and a truck-based route.
+2. **API** — `POST /api/trips/plan/` returning locations, route, events, daily logs, summary and any warnings.
+3. **Frontend** — input form, map with stop markers, timeline, summary.
+4. **Log sheets** — SVG drawing of the 24-hour grid, remarks and totals, printable.
+5. **Deployment** — frontend on Vercel, backend on Render.
 
 ---
 
