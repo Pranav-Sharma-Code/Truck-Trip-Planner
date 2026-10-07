@@ -1,0 +1,23 @@
+# Render blueprint for the Django API. The React app is deployed separately on Vercel.
+services:
+  - type: web
+    name: hos-trip-planner-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --threads 2 --timeout 120
+    healthCheckPath: /api/health/
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.5
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DJANGO_DEBUG
+        value: "false"
+      - key: NUM_PROXIES
+        value: "1"
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false # set to your Vercel URL, e.g. https://your-app.vercel.app
+      - key: ORS_API_KEY
+        sync: false # OpenRouteService key

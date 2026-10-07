@@ -14,17 +14,18 @@ Stack: **Django + Django REST Framework** (backend) and **React + Vite** (fronte
 
 | Part | Status |
 |---|---|
-| Backend skeleton, `/api/health/` | Done |
-| HOS engine: constants, clock, scheduler, validator, daily logs; 125 tests in total | Done |
-| Daily log builder (split events into 24-hour sheets) | Done |
-| Geometry helpers and "City, ST" lookup for log remarks | Done |
-| Geocoding and routing client (OpenRouteService) | Done |
-| Trip planning API endpoint (`POST /api/trips/plan/`) | Done |
-| React frontend: form, map, timeline | Planned |
-| Drawn ELD log sheets (SVG) | Planned |
-| Deployment (Vercel + Render) | Planned |
+| HOS engine: clock, scheduler, validator, daily logs | Done, with unit tests |
+| Geocoding and truck routing (OpenRouteService), "City, ST" labels | Done |
+| `POST /api/trips/plan/` with validation and clean errors | Done |
+| Trip form, route map with stop markers, summary cards, timeline | Done |
+| Drawn daily log sheets (SVG), print or save as PDF | Done |
+| HOS audit view (counters after every event, rule check) | Done |
+| Deployment configuration (Render blueprint, Vercel settings, production settings) | Done |
+| **Hosted live version** | **Not done.** Needs your Render and Vercel accounts; steps are in section 7 |
+| Loom walkthrough | Script is in `docs/loom-script.md`; recording is up to you |
 
-This README is updated as each part lands. The sections below mark what exists today and what does not.
+Tests: **125 backend tests** (`pytest`) and **40 frontend tests** (`npm test`). See section 8 for the assessment
+checklist and section 9 for known gaps.
 
 ---
 
@@ -78,15 +79,17 @@ Fuel, pickup and drop-off are *On Duty (not driving)*, so they use up cycle hour
 
 ## 4. Folder structure
 
-What exists today is marked with a check. The rest is the plan.
 
 ```
 evm/
-├─ README.md                  ✔
-├─ .gitignore                 ✔  (keeps secrets and the assessment files out of git)
+├─ README.md
+├─ render.yaml                Render blueprint for the API
+├─ docs/loom-script.md        walkthrough script
+├─ .gitignore                 keeps secrets and the assessment files out of git
 ├─ backend/
 │  ├─ manage.py               ✔
-│  ├─ requirements.txt        ✔
+│  ├─ requirements.txt        runtime dependencies
+│  ├─ requirements-dev.txt    adds pytest
 │  ├─ pytest.ini              ✔
 │  ├─ .env.example            ✔  (copy to .env)
 │  ├─ config/                 ✔  Django settings, urls, wsgi
@@ -108,7 +111,22 @@ evm/
 │     ├─ exceptions.py        ✔  clean, user-facing planner errors
 │     ├─ services/planner.py  ✔  geocode -> route -> schedule -> validate -> logs -> response
 │     └─ tests/               ✔  test_clock, test_scheduler, test_validator, test_daily_logs, test_geometry, test_places, test_ors, test_api, test_health
-└─ frontend/                     planned  React + Vite
+└─ frontend/                  React + Vite (JavaScript), Tailwind CSS, Leaflet
+   ├─ vercel.json, .env.example
+   └─ src/
+      ├─ api/                 client.js (fetch + clean errors), types.js (JSDoc typedefs)
+      ├─ hooks/               useApiStatus, usePlanTrip, useSlow, useLogDetails, usePrinting
+      ├─ lib/                 format, validation, startTime, eventTypes, tripView, dutyStatus, logGeometry
+      └─ components/
+         ├─ ui/               Card, Button, Badge, Alert, Spinner, Tabs
+         ├─ layout/           Header
+         ├─ trip-form/        TripForm, LocationField, CycleField, ExampleTrips
+         ├─ results/          TripResults (tabs, links map and timeline)
+         ├─ summary/          TripSummary
+         ├─ map/              RouteMap, StopMarker, MapLegend
+         ├─ timeline/         Timeline, TimelineItem
+         ├─ logs/             LogSheet (+ Header, Grid, Remarks, Footer), LogSheetList, LogDetailsForm
+         └─ audit/            AuditPanel
 ```
 
 ---
@@ -280,7 +298,30 @@ curl -X POST http://localhost:8000/api/trips/plan/ -H "Content-Type: application
   -d "{\"current_location\":\"Dallas, TX\",\"pickup_location\":\"Fort Worth, TX\",\"dropoff_location\":\"Austin, TX\",\"current_cycle_used_hours\":10}"
 ```
 
-### 5.9 Tests
+### 5.9 The drawn log sheets (`frontend/src/components/logs/`)
+
+Each day from `daily_logs` is drawn as an SVG that follows the FMCSA "Driver's Daily Log" layout:
+
+- **Header**: date (month / day / year), from and to, total miles driving today, carrier, main office, home terminal,
+  vehicle numbers. The carrier, vehicle, shipment and driver name are typed in the "Sheet details" box and remembered
+  in the browser (local storage only; they never go to the server).
+- **Graph grid**: 24 hours across (midnight to midnight, 30 px per hour) and four rows: Off Duty, Sleeper Berth,
+  Driving, On Duty (not driving). Ticks every 15 minutes. The duty line is drawn exactly as on paper: a horizontal
+  stroke per segment at the right times, joined by vertical strokes at each change of status.
+- **Total hours column**: hours per status as H:MM, and the sum, which always reads 24:00. H:MM is used so the
+  column adds up exactly, with no rounding.
+- **Remarks**: a numbered marker under the grid at every status change and a list with the time, the "City, ST" and
+  what happened. Markers that would overlap share a second level so every number stays readable.
+- **Recap**: on-duty hours today, hours used in the cycle, hours available tomorrow, and a note when a 34-hour
+  restart finished that day. "Last 5 days" is left as a dash because the app does not track it.
+- **Signature line** with the driver's name if you entered it.
+
+The sheet is always black on white ("paper"), in light or dark mode. All positions come from plain functions in
+`lib/logGeometry.js` (minute to x, row to y, duty line, ticks), which are unit tested. "Print or save as PDF" prints
+every day's sheet on its own letter-size page; only the visible day is drawn on screen to keep typing fast, and the
+rest are drawn just before printing.
+
+### 5.10 Tests
 
 ```
 cd backend
@@ -293,10 +334,52 @@ accounting, a multi-day trip, bad input, and 300 random trips that must all pass
 
 ---
 
+## Run the frontend
+
+Needs Node 20 or newer, and the backend running on port 8000.
+
+```
+cd frontend
+npm install
+copy .env.example .env        # macOS/Linux: cp .env.example .env
+npm run dev                   # http://localhost:5173
+npm test                      # unit tests for formatting, validation and start-time helpers
+npm run build                 # production build into dist/
+```
+
+`VITE_API_BASE_URL` in `frontend/.env` points at the API (default `http://localhost:8000`).
+The page follows your system's light or dark setting. Map tiles come from OpenStreetMap's public tile server
+(fine for a demo; a busy site would need its own tile provider). OpenStreetMap has no dark style, so in dark mode the
+tiles are inverted with a CSS filter. Scroll-wheel zoom turns on after you click the map, so scrolling the page
+over the map does not zoom it.
+
+The form checks input as you type (locations required, cycle hours between 0 and 70, valid start time) and the
+API checks it again. If the server rejects a place, the message appears under that field until you edit it.
+The start time defaults to now, rounded up to a quarter hour, and is sent with your local UTC offset. Three
+example trips fill the form in one click.
+
+The results view has three parts:
+
+- **Summary cards**: distance, driving time, trip duration and arrival, log sheets, cycle used before and after,
+  cycle hours left, and the number of stops, plus a badge saying whether the plan stays within the HOS limits.
+  Warnings such as a scheduled 34-hour restart appear in an amber (not red) box.
+- **Map**: the route line, and a marker for the start (A), pickup (B), drop-off (C), and every fuel stop, break,
+  rest and restart. Each stop type has its own colour and icon, with a legend underneath. Clicking a marker shows
+  when, where and why.
+- **Timeline**: every event in order, grouped by day, with its time range, duration, location, mileage, the reason,
+  and the regulation behind it. Clicking an item scrolls the map into view, zooms to that stop and opens its
+  popup; clicking a marker highlights its timeline item.
+
+Design notes: colours are tokens in `src/index.css`, so light and dark share the same classes. Each duty status
+has one colour used on the map, timeline and log sheets. Trip times are shown in the trip's own UTC offset
+(read from the timestamp, not converted to the viewer's timezone), because that is how a driver's log is kept.
+
+---
+
 ## Credits
 
 Place names and coordinates come from [GeoNames](https://www.geonames.org), licensed
-[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Map data will come from OpenStreetMap contributors.
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Map data and tiles are from [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors.
 
 ---
 
@@ -308,9 +391,10 @@ Needs Python 3.12 or newer.
 cd backend
 python -m venv .venv
 .venv\Scripts\activate                  # Windows   (macOS/Linux: source .venv/bin/activate)
-pip install -r requirements.txt
+pip install -r requirements-dev.txt        # runtime + pytest
 copy .env.example .env                  # macOS/Linux: cp .env.example .env
 python manage.py runserver
+python -m pytest -q                     # run the 125 backend tests
 ```
 
 Check it: open `http://localhost:8000/api/health/`. It should return `{"status": "ok"}`.
@@ -326,19 +410,88 @@ The tests do not need it.
 | `DJANGO_DEBUG` | `true` for local development |
 | `DJANGO_ALLOWED_HOSTS` | comma-separated hosts |
 | `CORS_ALLOWED_ORIGINS` | frontend origin(s) allowed to call the API |
-| `ORS_API_KEY` | OpenRouteService key (used once routing is added) |
+| `ORS_API_KEY` | OpenRouteService key |
+| `NUM_PROXIES` | production: proxies in front of the app (1 on Render), so rate limits are per visitor |
+| `SECURE_SSL_REDIRECT` | production: redirect http to https (default on; `/api/health/` is exempt) |
+| `LOG_LEVEL` | optional, default `INFO` |
+
+Frontend: `VITE_API_BASE_URL` (the API's address).
 
 ---
 
-## 7. What is planned next
+## 7. Deployment
 
-1. **Frontend** — input form, map with stop markers, timeline, summary.
-2. **Log sheets** — SVG drawing of the 24-hour grid, remarks and totals, printable.
-3. **Deployment** — frontend on Vercel, backend on Render.
+The API goes on **Render** and the React app on **Vercel**. Do the API first.
+
+**API on Render** (uses `render.yaml`)
+
+1. In Render choose New, then Blueprint, and select this GitHub repo. It creates `hos-trip-planner-api` from
+   `render.yaml` (root `backend`, gunicorn, health check `/api/health/`, a generated `DJANGO_SECRET_KEY`).
+2. When asked, enter `ORS_API_KEY`. For `CORS_ALLOWED_ORIGINS` put a placeholder for now.
+3. When it is live, open `https://<your-service>.onrender.com/api/health/`; it should say `{"status":"ok"}`.
+
+**App on Vercel**
+
+1. New Project, import the repo, set **Root Directory** to `frontend` (Vite is detected automatically).
+2. Add the environment variable `VITE_API_BASE_URL` = the Render URL (no trailing slash). Deploy.
+3. Go back to Render and set `CORS_ALLOWED_ORIGINS` to the Vercel URL (comma-separate more than one). The service
+   restarts and the app can now call the API.
+
+**Smoke test** on the live URLs: run the three example trips, open each tab, print a sheet.
+
+Things to know:
+
+- Render's free service sleeps after about 15 minutes idle; the first request can take up to a minute. The app
+  pings `/api/health/` when the page opens and says "Waking up the server" while it waits. Open the live site yourself
+  shortly before a demo or a grader tests it.
+- OpenRouteService's free plan has a daily request limit (each plan uses one routing call and up to three
+  geocoding calls, with in-memory caching for repeat places).
+- Vercel preview URLs are different origins; add them to `CORS_ALLOWED_ORIGINS` if you want to use them.
+- The API has no database, cookies or login, so Django's CSRF middleware is not used. `manage.py check --deploy`
+  still lists CSRF and two optional HSTS settings; that is expected.
+
+## 8. Assessment checklist
+
+Against the assessment and the master spec (section 17). A tick means it was run or tested here, not just written.
+
+| Item | Status |
+|---|---|
+| Django backend works | Yes; 125 tests, and run against the live routing service |
+| React frontend works | Yes; tried in Chrome (dark mode) |
+| Current, pickup, drop-off and cycle inputs | Yes, with validation on both sides |
+| Locations are geocoded; a real route is drawn on a map | Yes (OpenRouteService, OpenStreetMap tiles) |
+| Fuel, rest, pickup and drop-off stops visible | Yes: map markers, legend and timeline |
+| 11-hour, 14-hour, 30-minute and 70-hour rules enforced | Yes, and re-checked by a separate validator |
+| Pickup and drop-off 1 hour each, counted as on duty | Yes |
+| Fuel at least every 1,000 miles | Yes (30-minute stops, assumed) |
+| Trips span several days; one sheet per day | Yes (for example 6 sheets for Los Angeles to Chicago) |
+| ELD grid drawn, not just text | Yes (SVG) |
+| Daily status totals reconcile to 24 hours | Yes, checked in code and tests |
+| Cycle usage tracked | Yes |
+| Edge cases tested | Yes: exact 8 h and 11 h, 14-hour window, cycle near 70, 34-hour restart, fuel at 999/1,000/1,001 miles, bad input, provider failures |
+| UI polished and responsive | Polished and checked on a desktop-width window in dark mode. **Not checked on a phone or in light mode** |
+| README complete | Yes |
+| Deployment works | **Not hosted yet** (section 7) |
+| Loom can be recorded in 3 to 5 minutes | Script ready |
+| No invented claims | Yes. Nothing here says it is hosted, and test counts are from real runs |
+
+## 9. Known gaps and limits
+
+- **Not hosted.** The configuration is ready; creating the accounts is yours to do.
+- **Phone layout and light mode were not looked at.** They are built (single column on small screens, theme tokens
+  for light), but I have not seen them.
+- **Truck speeds are conservative.** The routing service's truck profile gave about 5 hours for 194 miles, so trips
+  run longer than a real driver's. Times are only as good as the provider's.
+- **Single routing limit.** One plan cannot exceed about 3,700 miles in total (the provider's 6,000 km cap).
+- **Assumptions that are choices, not rules**: 30-minute fuel stops, a fully rested start, cycle hours before the trip
+  never roll off, no traffic or weather. They are shown in the app on the audit tab.
+- **Not modelled**: split sleeper, adverse conditions, short-haul exceptions, inspections, team drivers, time-zone
+  changes during the trip, and the "last 5 days" recap figure.
+- **Stops are placed where a limit is reached**, not at real truck stops, and described as "near City, ST".
 
 ---
 
-## 8. How to explain this project (for a walkthrough or interview)
+## 10. How to explain this project (for a walkthrough or interview)
 
 **30-second version**
 > It's a trip planner for truck drivers. You give it where the truck is, where to pick up, where to deliver and
@@ -365,5 +518,5 @@ adverse driving or short-haul. These are listed in section 3 on purpose.
 Real traffic and weather, rolling-off of old cycle days, split-sleeper rest, time-zone changes, and choosing fuel
 stops at real truck stops rather than at the point where the limit is reached.
 
-**Be honest about status.** Anything marked "Planned" in section 1 is not built yet. Only describe what is in the
+**Be honest about status.** The live hosting is not set up yet (sections 1 and 7), and section 9 lists what was not checked. Only describe what is in the
 code.
