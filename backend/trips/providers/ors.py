@@ -1,4 +1,4 @@
-"""OpenRouteService client: US geocoding and heavy-goods-vehicle routing."""
+"""OpenRouteService client: geocoding and heavy-goods-vehicle routing."""
 
 import requests
 
@@ -34,11 +34,11 @@ class OrsClient:
         data = self._request(
             "get",
             "/geocode/search",
-            params={"api_key": self.api_key, "text": text, "boundary.country": "US", "size": 1},
+            params={"api_key": self.api_key, "text": text, "size": 1},
         )
         features = data.get("features") or []
         if not features:
-            raise LocationNotFound(f'Could not find "{text}" in the United States.')
+            raise LocationNotFound(f'Could not find "{text}". Try a city and state or country, like "Dallas, TX" or "Pune, India".')
 
         lon, lat = features[0]["geometry"]["coordinates"][:2]
         label = features[0].get("properties", {}).get("label") or text

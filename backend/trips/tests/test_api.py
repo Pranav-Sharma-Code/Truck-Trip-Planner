@@ -241,3 +241,27 @@ def test_mid_route_stops_are_described_from_the_places_list(use_fakes):
     rest = next(e for e in plan["events"] if e["type"] == "REST")
     assert rest["location"]["label"].endswith((", IL", ", IN", ", MO", ", AR", ", TX", ", OK", ", KY", ", TN", ", KS"))
     assert 0 < rest["start_mile"] < plan["summary"]["total_miles"]
+
+
+def test_trip_outside_the_us_plans_with_country_labels(monkeypatch):
+    geocoder = FakeGeocoder(
+        {
+            "Delhi, India": (28.6139, 77.2090, "Delhi, India"),
+            "Jaipur, India": (26.9124, 75.7873, "Jaipur, Rajasthan, India"),
+            "Chennai, India": (13.0827, 80.2707, "Chennai, Tamil Nadu, India"),
+        }
+    )
+    monkeypatch.setattr("trips.views.get_providers", lambda: (geocoder, FakeRouter(mph=45, detour=1.25)))
+
+    response = post(
+        payload(current_location="Delhi, India", pickup_location="Jaipur, India", dropoff_location="Chennai, India")
+    )
+
+    assert response.status_code == 200
+    plan = response.json()
+    assert plan["compliance"]["ok"] is True
+    assert plan["events"][0]["location"]["label"] == "Delhi, India"
+    # Stops along the way come from the places list, labelled with the country code.
+    stops = [e["location"]["label"] for e in plan["events"] if e["type"] in ("REST", "BREAK", "FUEL")]
+    assert stops and all(label.replace("near ", "").endswith(", IN") for label in stops)
+    assert any("hours-of-service rules" in text for text in plan["assumptions"])

@@ -24,7 +24,7 @@ Stack: **Django + Django REST Framework** (backend) and **React + Vite** (fronte
 | **Hosted live version** | **Not done.** Needs your Render and Vercel accounts; steps are in section 7 |
 | Loom walkthrough | Script is in `docs/loom-script.md`; recording is up to you |
 
-Tests: **125 backend tests** (`pytest`) and **40 frontend tests** (`npm test`). See section 8 for the assessment
+Tests: **130 backend tests** (`pytest`) and **40 frontend tests** (`npm test`). See section 8 for the assessment
 checklist and section 9 for known gaps.
 
 ---
@@ -45,7 +45,7 @@ The hard part of this project is **not** the screens. It is deciding *when the d
 4. Cut the plan into calendar days and draw each day as a log sheet.
 
 The scheduler is plain Python with no Django and no network calls, so it can be tested on its own. That is why it
-has 125 unit tests and the web layer stays thin.
+has 130 unit tests and the web layer stays thin.
 
 ---
 
@@ -105,7 +105,7 @@ evm/
 │     │  ├─ validator.py      ✔  re-checks a finished plan
 │     │  └─ daily_logs.py     ✔  splits events into one 24-hour sheet per day
 │     ├─ geo/                 ✔  geometry.py (distance, point at mile N, simplify), places.py (nearest City, ST)
-│     ├─ data/us_places.csv   ✔  7,557 US places from GeoNames (see credits)
+│     ├─ data/places.csv      ✔  69,772 places worldwide from GeoNames (see credits)
 │     ├─ scripts/ (in backend/) ✔  build_places_index.py rebuilds the CSV
 │     ├─ providers/           ✔  base.py (types), ors.py (OpenRouteService client)
 │     ├─ exceptions.py        ✔  clean, user-facing planner errors
@@ -223,17 +223,21 @@ Two small jobs, both needed to put names on the map and on the log remarks:
 - **`RoutePath.point_at(mile)`** answers "where is the truck N miles into the route?". The scheduler only knows
   mileage, so this turns a stop at mile 640 into a latitude/longitude. The routing service's distance and the
   polyline's own length differ slightly, so mileage is scaled to land exactly on the last point.
-- **`PlaceIndex.nearest(lat, lon)`** finds the closest US city, so each stop can be written as "City, ST" (the
-  FMCSA guide requires this for every duty status change). It reads a local file, so there are no API calls, no
-  rate limits, and results are repeatable. Places sit on a 1-degree grid and the search widens ring by ring until
-  no closer place is possible. A test checks it against a brute-force search of every place.
+- **`PlaceIndex.nearest(lat, lon)`** finds the closest city, so each stop can be written as "City, ST" (the
+  FMCSA guide requires a place name for every duty status change). US places show the state ("Dallas, TX"); places
+  elsewhere show the country code ("Pune, IN"). It reads a local file of about 70,000 cities, so there are no API
+  calls, no rate limits, and results are repeatable (loads in under a second, about 25 MB). Places sit on a 1-degree
+  grid and the search widens ring by ring until no closer place is possible. A test checks it against a brute-force
+  search of every place. `locate()` prefers the biggest city within a few miles, so downtown Chicago is "Chicago",
+  not "Chicago Loop".
 - **`simplify()`** thins the route line (Douglas-Peucker) so the browser is not sent tens of thousands of points.
 
 ### 5.7 Routing client (`trips/providers/ors.py`)
 
 Talks to [OpenRouteService](https://openrouteservice.org) (free API key, set as `ORS_API_KEY`):
 
-- **Geocoding** turns "Dallas, TX" into coordinates, restricted to the US. Results are cached in memory.
+- **Geocoding** turns a place name such as "Dallas, TX" or "Pune, India" into coordinates. Any country works.
+  Results are cached in memory.
 - **Routing** uses the heavy-goods-vehicle (truck) profile and returns one leg per pair of stops (distance in miles,
   duration in whole minutes) plus the route line. If two stops are the same place, that leg is zero-length and
   no extra request is made.
@@ -282,7 +286,7 @@ Errors always look like `{"code", "message", "field"?}`:
 | Status | `code` | When |
 |---|---|---|
 | 400 | `validation_error` | bad input; `field` names it (cycle outside 0 to 70, blank place, start time without offset) |
-| 422 | `location_not_found` | a place could not be found; `field` says which one |
+| 422 | `location_not_found` | a place could not be found anywhere in the world; `field` says which one |
 | 422 | `route_not_found` | no drivable route, or longer than the routing service allows |
 | 429 | `rate_limited` | more than 30 requests a minute from one address |
 | 502 / 503 | `routing_failed` / `provider_busy` | routing service problem, timeout or rate limit |
@@ -378,7 +382,7 @@ has one colour used on the map, timeline and log sheets. Trip times are shown in
 
 ## Credits
 
-Place names and coordinates come from [GeoNames](https://www.geonames.org), licensed
+Place names and coordinates (about 70,000 cities worldwide) come from [GeoNames](https://www.geonames.org), licensed
 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Map data and tiles are from [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors.
 
 ---
@@ -394,7 +398,7 @@ python -m venv .venv
 pip install -r requirements-dev.txt        # runtime + pytest
 copy .env.example .env                  # macOS/Linux: cp .env.example .env
 python manage.py runserver
-python -m pytest -q                     # run the 125 backend tests
+python -m pytest -q                     # run the 130 backend tests
 ```
 
 Check it: open `http://localhost:8000/api/health/`. It should return `{"status": "ok"}`.
@@ -456,7 +460,7 @@ Against the assessment and the master spec (section 17). A tick means it was run
 
 | Item | Status |
 |---|---|
-| Django backend works | Yes; 125 tests, and run against the live routing service |
+| Django backend works | Yes; 130 tests, and run against the live routing service |
 | React frontend works | Yes; tried in Chrome (dark mode) |
 | Current, pickup, drop-off and cycle inputs | Yes, with validation on both sides |
 | Locations are geocoded; a real route is drawn on a map | Yes (OpenRouteService, OpenStreetMap tiles) |
@@ -487,7 +491,11 @@ Against the assessment and the master spec (section 17). A tick means it was run
   never roll off, no traffic or weather. They are shown in the app on the audit tab.
 - **Not modelled**: split sleeper, adverse conditions, short-haul exceptions, inspections, team drivers, time-zone
   changes during the trip, and the "last 5 days" recap figure.
-- **Stops are placed where a limit is reached**, not at real truck stops, and described as "near City, ST".
+- **Stops are placed where a limit is reached**, not at real truck stops, and described as "near City, ST"
+  (or "near City, CC" outside the US, with the ISO country code).
+- **The rules are the US federal ones (FMCSA)**, applied to every trip, including trips elsewhere in the world.
+  The assessment does not say to restrict the app to the US, so it does not. Ambiguous names ("Paris") resolve to
+  the geocoder's top match; add a state or country to be specific.
 
 ---
 

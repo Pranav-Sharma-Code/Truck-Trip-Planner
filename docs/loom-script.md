@@ -36,7 +36,7 @@ Mention print or save as PDF, one sheet per page.
 
 ## 3:45 – Testing and honesty (45 s)
 
-- 125 backend tests and 40 frontend tests. Edge cases: exactly 8 and 11 hours, the 14-hour window, cycle near 70,
+- 130 backend tests and 40 frontend tests. Edge cases: exactly 8 and 11 hours, the 14-hour window, cycle near 70,
   fuel at 999, 1,000 and 1,001 miles. 300 random trips must all pass the validator.
 - The validator re-checks a finished plan by looking backwards, so a bug in the scheduler's counters cannot hide.
 - Limits: a 30-minute fuel stop is my assumption; a fully rested start; no traffic or weather; the provider's truck

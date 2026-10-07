@@ -36,13 +36,13 @@ class FakeSession:
 
 class FakeGeocoder:
     def __init__(self, places):
-        self.places = places  # {"Dallas, TX": (lat, lon)}
+        self.places = places  # {"Dallas, TX": (lat, lon)} or (lat, lon, label)
 
     def geocode(self, text):
         if text not in self.places:
-            raise LocationNotFound(f'Could not find "{text}" in the United States.')
-        lat, lon = self.places[text]
-        return GeocodedLocation(input=text, label=f"{text}, USA", lat=lat, lon=lon)
+            raise LocationNotFound(f'Could not find "{text}".')
+        lat, lon, *label = self.places[text]
+        return GeocodedLocation(input=text, label=label[0] if label else f"{text}, USA", lat=lat, lon=lon)
 
 
 class FakeRouter:

@@ -42,7 +42,7 @@ def test_geocode_returns_lat_lon_and_label():
     assert (place.lat, place.lon, place.label) == (32.73, -96.78, "Dallas, TX, USA")
     method, url, kwargs = session.calls[0]
     assert url.endswith("/geocode/search")
-    assert kwargs["params"]["boundary.country"] == "US"
+    assert "boundary.country" not in kwargs["params"]  # any country is accepted
     assert kwargs["params"]["text"] == "Dallas, TX"
 
 

@@ -12,7 +12,7 @@ def index():
 
 
 def test_index_loads_a_realistic_number_of_places(index):
-    assert len(index.places) > 5000
+    assert len(index.places) > 50000
 
 
 @pytest.mark.parametrize(
@@ -36,8 +36,23 @@ def test_rural_point_gets_a_nearby_town_in_the_right_state(index):
     assert distance < 80
 
 
-def test_point_far_outside_the_us_returns_none(index):
-    assert index.nearest(35.0, -30.0) == (None, None)  # mid-Atlantic
+def test_point_far_from_any_place_returns_none(index):
+    assert index.nearest(-40.0, -140.0) == (None, None)  # remote South Pacific
+
+
+@pytest.mark.parametrize(
+    "lat, lon, label",
+    [
+        (19.07, 72.87, "Mumbai, IN"),
+        (18.52, 73.85, "Pune, IN"),
+        (12.97, 77.59, "Bengaluru, IN"),
+        (51.51, -0.13, "London, GB"),
+    ],
+)
+def test_places_outside_the_us_are_labelled_with_the_country_code(index, lat, lon, label):
+    place, distance = index.locate(lat, lon)
+    assert place.label == label
+    assert distance < 15
 
 
 def test_matches_brute_force_search(index):
@@ -62,5 +77,5 @@ def test_locate_keeps_the_closest_town_when_nothing_larger_is_near(index):
     assert place == index.nearest(42.9, -107.5)[0]
 
 
-def test_locate_outside_the_us_returns_none(index):
-    assert index.locate(35.0, -30.0) == (None, None)
+def test_locate_far_from_any_place_returns_none(index):
+    assert index.locate(-40.0, -140.0) == (None, None)

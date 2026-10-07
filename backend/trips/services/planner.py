@@ -22,6 +22,7 @@ ANCHOR_SNAP_MILES = 0.25  # events this close to a trip location are placed at i
 
 ASSUMPTIONS = [
     "Property-carrying driver on the 70-hour/8-day schedule, with no adverse driving conditions.",
+    "The US federal hours-of-service rules (FMCSA) are applied to every trip, wherever it is.",
     "The driver starts the trip after at least 10 hours off duty, with a full fuel tank.",
     "Pickup and drop-off each take 1 hour (on duty, not driving).",
     "Fuel stops take 30 minutes and happen at least every 1,000 miles.",

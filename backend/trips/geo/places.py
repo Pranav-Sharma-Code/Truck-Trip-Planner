@@ -7,7 +7,7 @@ from pathlib import Path
 
 from .geometry import haversine_miles
 
-DATA_FILE = Path(__file__).resolve().parent.parent / "data" / "us_places.csv"
+DATA_FILE = Path(__file__).resolve().parent.parent / "data" / "places.csv"
 MAX_RING = 12  # grid cells (about 1 degree each) to search before giving up
 PREFER_LARGER_WITHIN_MILES = 3  # see PlaceIndex.locate
 
@@ -19,14 +19,16 @@ class Place:
     lat: float
     lon: float
     population: int = 0
+    country: str = "US"
 
     @property
     def label(self):
-        return f"{self.name}, {self.state}"
+        # US places carry a state ("Dallas, TX"); elsewhere the ISO country code ("Pune, IN").
+        return f"{self.name}, {self.state}" if self.country == "US" else f"{self.name}, {self.country}"
 
 
 class PlaceIndex:
-    """Nearest-city lookup over a 1-degree grid of US places."""
+    """Nearest-city lookup over a 1-degree grid of places."""
 
     def __init__(self, places):
         self.places = list(places)
@@ -38,7 +40,14 @@ class PlaceIndex:
     def from_csv(cls, path=DATA_FILE):
         with open(path, newline="", encoding="utf-8") as handle:
             return cls(
-                Place(row["name"], row["state"], float(row["lat"]), float(row["lon"]), int(row["population"] or 0))
+                Place(
+                    row["name"],
+                    row["state"],
+                    float(row["lat"]),
+                    float(row["lon"]),
+                    int(row["population"] or 0),
+                    row["country"],
+                )
                 for row in csv.DictReader(handle)
             )
 
