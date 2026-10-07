@@ -15,8 +15,8 @@ Stack: **Django + Django REST Framework** (backend) and **React + Vite** (fronte
 | Part | Status |
 |---|---|
 | Backend skeleton, `/api/health/` | Done |
-| HOS engine: constants, clock, scheduler, validator + 45 tests | Done |
-| Daily log builder (split events into 24-hour sheets) | Planned |
+| HOS engine: constants, clock, scheduler, validator, daily logs; 56 tests in total | Done |
+| Daily log builder (split events into 24-hour sheets) | Done |
 | Geometry helpers and "City, ST" lookup for log remarks | Planned |
 | Geocoding and routing (OpenRouteService) | Planned |
 | Trip planning API endpoint | Planned |
@@ -44,7 +44,7 @@ The hard part of this project is **not** the screens. It is deciding *when the d
 4. Cut the plan into calendar days and draw each day as a log sheet.
 
 The scheduler is plain Python with no Django and no network calls, so it can be tested on its own. That is why it
-has 45 unit tests and the web layer stays thin.
+has 56 unit tests and the web layer stays thin.
 
 ---
 
@@ -98,11 +98,11 @@ evm/
 │     │  ├─ clock.py          ✔  running counters (driving, window, break, cycle, fuel)
 │     │  ├─ scheduler.py      ✔  plan_trip(): builds the list of events
 │     │  ├─ validator.py      ✔  re-checks a finished plan
-│     │  └─ daily_logs.py        planned
+│     │  └─ daily_logs.py     ✔  splits events into one 24-hour sheet per day
 │     ├─ geo/                    planned  distance helpers, nearest "City, ST"
 │     ├─ providers/              planned  OpenRouteService client
 │     ├─ services/planner.py     planned  glues everything together
-│     └─ tests/               ✔  test_clock, test_scheduler, test_validator, test_health
+│     └─ tests/               ✔  test_clock, test_scheduler, test_validator, test_daily_logs, test_health
 └─ frontend/                     planned  React + Vite
 ```
 
@@ -181,14 +181,26 @@ adds things up. A bug in the scheduler's running counters therefore cannot hide 
 
 It checks: overlaps and gaps, 11-hour limit, 14-hour window, 8-hour break, 70-hour cycle, 1,000-mile fuel interval.
 
-### 5.5 Tests
+### 5.5 Daily logs (`hos/daily_logs.py`)
+
+`build_daily_logs(events, cycle_used_start_minutes, labels)` turns the event list into one sheet per calendar day:
+
+- Events are clipped at midnight, so a rest or a drive that crosses midnight appears on both days.
+- Time before the first event and after the last is logged as off duty, so every sheet covers exactly 1,440 minutes.
+  The code raises an error if a sheet ever fails to add up to 24 hours.
+- Each sheet has: ordered duty-status segments, totals per status, miles driven that day (split by time when a drive
+  crosses midnight), remarks at every status change, and a recap (on-duty time today, cycle used at midnight, cycle
+  hours still available, whether a 34-hour restart finished that day).
+- Remarks need place names. The planner will pass them in as `labels`; until then they are `None`.
+
+### 5.6 Tests
 
 ```
 cd backend
 .venv\Scripts\python -m pytest -q        # Windows
 ```
 
-45 tests cover: break at exactly 8 hours, rest at exactly 11 hours, the 14-hour window, cycle near 70
+The tests cover: break at exactly 8 hours, rest at exactly 11 hours, the 14-hour window, cycle near 70
 (69.5 h → restart mid-leg, 70 h → restart before leaving), fuel at 999 / 1,000 / 1,001 miles, pickup and drop-off
 accounting, a multi-day trip, bad input, and 300 random trips that must all pass the validator.
 
@@ -223,13 +235,12 @@ Check it: open `http://localhost:8000/api/health/`. It should return `{"status":
 
 ## 7. What is planned next
 
-1. **Daily logs** — cut the event list at midnight into 24-hour sheets; totals per status must add to 24 h.
-2. **Geo helpers** — distance maths, and a small offline places list so each stop can be labelled "City, ST".
-3. **Routing** — OpenRouteService for geocoding and a truck-based route.
-4. **API** — `POST /api/trips/plan/` returning locations, route, events, daily logs, summary and any warnings.
-5. **Frontend** — input form, map with stop markers, timeline, summary.
-6. **Log sheets** — SVG drawing of the 24-hour grid, remarks and totals, printable.
-7. **Deployment** — frontend on Vercel, backend on Render.
+1. **Geo helpers** — distance maths, and a small offline places list so each stop can be labelled "City, ST".
+2. **Routing** — OpenRouteService for geocoding and a truck-based route.
+3. **API** — `POST /api/trips/plan/` returning locations, route, events, daily logs, summary and any warnings.
+4. **Frontend** — input form, map with stop markers, timeline, summary.
+5. **Log sheets** — SVG drawing of the 24-hour grid, remarks and totals, printable.
+6. **Deployment** — frontend on Vercel, backend on Render.
 
 ---
 
