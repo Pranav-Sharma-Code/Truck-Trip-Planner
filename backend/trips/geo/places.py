@@ -9,6 +9,7 @@ from .geometry import haversine_miles
 
 DATA_FILE = Path(__file__).resolve().parent.parent / "data" / "us_places.csv"
 MAX_RING = 12  # grid cells (about 1 degree each) to search before giving up
+PREFER_LARGER_WITHIN_MILES = 3  # see PlaceIndex.locate
 
 
 @dataclass(frozen=True)
@@ -17,6 +18,7 @@ class Place:
     state: str
     lat: float
     lon: float
+    population: int = 0
 
     @property
     def label(self):
@@ -36,7 +38,7 @@ class PlaceIndex:
     def from_csv(cls, path=DATA_FILE):
         with open(path, newline="", encoding="utf-8") as handle:
             return cls(
-                Place(row["name"], row["state"], float(row["lat"]), float(row["lon"]))
+                Place(row["name"], row["state"], float(row["lat"]), float(row["lon"]), int(row["population"] or 0))
                 for row in csv.DictReader(handle)
             )
 
@@ -59,6 +61,32 @@ class PlaceIndex:
                         if best is None or distance < best_distance:
                             best, best_distance = place, distance
         return best, best_distance
+
+    def within(self, lat, lon, radius_miles):
+        """All places within `radius_miles`, as (place, distance_miles) pairs."""
+        cell_miles = max(1.0, 69.0 * cos(radians(min(abs(lat), 80))))
+        reach = int(radius_miles // cell_miles) + 2
+        row, col = floor(lat), floor(lon)
+        found = []
+        for d_row in range(-reach, reach + 1):
+            for d_col in range(-reach, reach + 1):
+                for place in self._grid.get((row + d_row, col + d_col), ()):
+                    distance = haversine_miles((lat, lon), (place.lat, place.lon))
+                    if distance <= radius_miles:
+                        found.append((place, distance))
+        return found
+
+    def locate(self, lat, lon):
+        """Best "City, ST" for a point: (place, distance_miles), or (None, None).
+
+        The closest place is often a neighbourhood ("Chicago Loop"), so among the places
+        within a few miles of the closest one, the most populous wins ("Chicago").
+        """
+        closest, distance = self.nearest(lat, lon)
+        if closest is None:
+            return None, None
+        candidates = self.within(lat, lon, distance + PREFER_LARGER_WITHIN_MILES)
+        return max(candidates, key=lambda pair: pair[0].population)
 
 
 @lru_cache(maxsize=1)

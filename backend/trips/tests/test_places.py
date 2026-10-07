@@ -47,3 +47,20 @@ def test_matches_brute_force_search(index):
         place, distance = index.nearest(lat, lon)
         expected = min(haversine_miles((lat, lon), (p.lat, p.lon)) for p in index.places)
         assert distance == pytest.approx(expected, abs=1e-9), (lat, lon, place)
+
+
+def test_locate_prefers_the_city_over_a_neighbourhood(index):
+    # GeoNames has "Chicago Loop", which is the closest place to downtown.
+    assert index.nearest(41.8781, -87.6298)[0].name != "Chicago"
+    place, distance = index.locate(41.8781, -87.6298)
+    assert place.label == "Chicago, IL"
+    assert distance < 5
+
+
+def test_locate_keeps_the_closest_town_when_nothing_larger_is_near(index):
+    place, _ = index.locate(42.9, -107.5)
+    assert place == index.nearest(42.9, -107.5)[0]
+
+
+def test_locate_outside_the_us_returns_none(index):
+    assert index.locate(35.0, -30.0) == (None, None)
