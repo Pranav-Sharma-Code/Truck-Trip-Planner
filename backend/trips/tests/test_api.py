@@ -265,3 +265,51 @@ def test_trip_outside_the_us_plans_with_country_labels(monkeypatch):
     stops = [e["location"]["label"] for e in plan["events"] if e["type"] in ("REST", "BREAK", "FUEL")]
     assert stops and all(label.replace("near ", "").endswith(", IN") for label in stops)
     assert any("hours-of-service rules" in text for text in plan["assumptions"])
+
+
+def test_country_is_passed_to_the_geocoder_per_place(monkeypatch):
+    geocoder = FakeGeocoder(PLACES)
+    monkeypatch.setattr("trips.views.get_providers", lambda: (geocoder, FakeRouter()))
+
+    response = post(payload(current_country="us", dropoff_country="US"))
+
+    assert response.status_code == 200
+    calls = dict(geocoder.calls)
+    assert calls == {"Chicago, IL": "US", "Indianapolis, IN": None, "Dallas, TX": "US"}
+
+
+def test_country_is_optional_and_blank_means_anywhere(monkeypatch):
+    geocoder = FakeGeocoder(PLACES)
+    monkeypatch.setattr("trips.views.get_providers", lambda: (geocoder, FakeRouter()))
+
+    assert post(payload(current_country="", pickup_country=None)).status_code == 200
+    assert {country for _, country in geocoder.calls} == {None}
+
+
+@pytest.mark.parametrize("value", ["USA", "1", "I", "in dia", 5])
+def test_invalid_country_code_is_a_400_naming_the_field(use_fakes, value):
+    response = post(payload(pickup_country=value))
+    assert response.status_code == 400
+    body = response.json()
+    assert body["code"] == "validation_error"
+    assert body["field"] == "pickup_country"
+
+
+def test_address_parts_are_passed_to_the_geocoder(monkeypatch):
+    geocoder = FakeGeocoder(PLACES)
+    monkeypatch.setattr("trips.views.get_providers", lambda: (geocoder, FakeRouter()))
+    parts = {"place": "Chicago", "region": "Illinois"}
+
+    response = post(payload(current_parts=parts))
+
+    assert response.status_code == 200
+    by_text = dict(zip((text for text, _ in geocoder.calls), geocoder.parts))
+    assert by_text["Chicago, IL"] == parts
+    assert by_text["Dallas, TX"] is None
+
+
+@pytest.mark.parametrize("value", [{"city": "Pune"}, "Pune", ["Pune"], {"place": ["Pune"]}])
+def test_invalid_address_parts_are_a_400_naming_the_field(use_fakes, value):
+    response = post(payload(pickup_parts=value))
+    assert response.status_code == 400
+    assert response.json()["field"] == "pickup_parts"

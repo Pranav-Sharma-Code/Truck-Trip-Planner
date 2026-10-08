@@ -2,7 +2,7 @@ import pytest
 import requests
 
 from trips.exceptions import LocationNotFound, ProviderBusy, RouteNotFound, RoutingFailed
-from trips.providers.ors import METERS_PER_MILE, OrsClient
+from trips.providers.ors import METERS_PER_MILE, OrsClient, search_queries
 
 from .fakes import FakeResponse, FakeSession
 
@@ -162,3 +162,123 @@ def test_non_json_error_body_does_not_crash():
     ors, _ = client(FakeResponse(400, ValueError("not json")))
     with pytest.raises(RoutingFailed):
         ors.route([DALLAS, AUSTIN])
+
+
+def test_geocode_limits_the_search_to_the_given_country():
+    ors, session = client(FakeResponse(200, geocode_body(label="Pune, MH, India")))
+    ors.geocode("Pune", country="IN")
+    assert session.calls[0][2]["params"]["boundary.country"] == "IN"
+
+
+def test_geocode_cache_keeps_countries_apart():
+    ors, session = client(FakeResponse(200, geocode_body()), FakeResponse(200, geocode_body(label="Paris, France")))
+    ors.geocode("Paris", country="US")
+    ors.geocode("Paris", country="FR")
+    ors.geocode("paris", country="FR")
+    assert len(session.calls) == 2
+
+
+def test_not_found_message_mentions_the_selected_country():
+    ors, _ = client(FakeResponse(200, {"features": []}))
+    with pytest.raises(LocationNotFound) as error:
+        ors.geocode("Nowhereville", country="IN")
+    assert "selected country" in error.value.message
+
+
+def layered_body(layer, label, lon=77.59, lat=12.97):
+    return {
+        "features": [
+            {"geometry": {"coordinates": [lon, lat]}, "properties": {"label": label, "layer": layer}}
+        ]
+    }
+
+
+FULL_PARTS = {"place": "Bengaluru", "area": "Bengaluru Urban", "region": "Karnataka", "postal": "560001"}
+FULL_TEXT = "Bengaluru, Bengaluru Urban, Karnataka, 560001"
+
+
+def test_search_queries_without_parts_is_just_the_text():
+    assert search_queries("Dallas, TX", None) == ["Dallas, TX"]
+
+
+def test_search_queries_go_from_most_to_least_specific():
+    assert search_queries(FULL_TEXT, FULL_PARTS) == [
+        FULL_TEXT,
+        "Bengaluru, Karnataka, 560001",
+        "Bengaluru, Bengaluru Urban, Karnataka",
+        "Bengaluru, Karnataka",
+        "Bengaluru",
+    ]
+
+
+def test_search_queries_skip_parts_that_are_missing():
+    parts = {"place": "Pune", "area": "", "region": "Maharashtra", "postal": ""}
+    assert search_queries("Pune, Maharashtra", parts) == ["Pune, Maharashtra", "Pune"]
+
+
+def test_search_queries_without_a_place_use_the_other_parts():
+    parts = {"place": "", "area": "Pune", "region": "Maharashtra", "postal": "411001"}
+    queries = search_queries("Pune, Maharashtra, 411001", parts)
+    assert queries[0] == "Pune, Maharashtra, 411001"
+    assert "Maharashtra, 411001" in queries and "411001" in queries
+    assert all(not q.startswith("place") for q in queries)
+
+
+def test_geocode_falls_back_when_the_full_address_only_matches_a_region():
+    ors, session = client(
+        FakeResponse(200, layered_body("region", "Karnataka, India")),
+        FakeResponse(200, layered_body("locality", "Bangalore, KA, India")),
+    )
+    place = ors.geocode(FULL_TEXT, country="IN", parts=FULL_PARTS)
+
+    assert place.label == "Bangalore, KA, India"
+    asked = [call[2]["params"]["text"] for call in session.calls]
+    assert asked == [FULL_TEXT, "Bengaluru, Karnataka, 560001"]
+    assert all(call[2]["params"]["boundary.country"] == "IN" for call in session.calls)
+
+
+def test_geocode_stops_at_the_first_specific_result():
+    ors, session = client(FakeResponse(200, layered_body("address", "12 Main Street, Pune")))
+    ors.geocode(FULL_TEXT, parts=FULL_PARTS)
+    assert len(session.calls) == 1
+
+
+def test_when_every_search_is_coarse_the_plain_place_name_result_wins():
+    # The last, least specific search is the bare place name; if even that matches a region, the name
+    # really is a region, so that result is trusted.
+    queries = search_queries(FULL_TEXT, FULL_PARTS)
+    coarse = [FakeResponse(200, layered_body("region", f"Karnataka {i}")) for i in range(len(queries))]
+    ors, session = client(*coarse)
+    place = ors.geocode(FULL_TEXT, parts=FULL_PARTS)
+    assert place.label == f"Karnataka {len(queries) - 1}"
+    assert len(session.calls) == len(queries)
+
+
+def test_a_coarse_result_is_kept_if_the_remaining_searches_find_nothing():
+    queries = search_queries(FULL_TEXT, FULL_PARTS)
+    responses = [FakeResponse(200, layered_body("region", "Karnataka, India"))]
+    responses += [FakeResponse(200, {"features": []}) for _ in queries[1:]]
+    ors, _ = client(*responses)
+    assert ors.geocode(FULL_TEXT, parts=FULL_PARTS).label == "Karnataka, India"
+
+
+def test_a_place_that_is_itself_a_region_is_accepted_without_parts():
+    ors, session = client(FakeResponse(200, layered_body("region", "Karnataka, India")))
+    assert ors.geocode("Karnataka").label == "Karnataka, India"
+    assert len(session.calls) == 1
+
+
+def test_not_found_after_trying_every_search():
+    queries = search_queries(FULL_TEXT, FULL_PARTS)
+    ors, session = client(*[FakeResponse(200, {"features": []}) for _ in queries])
+    with pytest.raises(LocationNotFound):
+        ors.geocode(FULL_TEXT, parts=FULL_PARTS)
+    assert len(session.calls) == len(queries)
+
+
+@pytest.mark.parametrize("body", [{"error": "Quota exceeded"}, {"error": {"code": 4, "message": "Quota exceeded"}}])
+def test_quota_exceeded_is_a_busy_error_not_a_bad_key(body):
+    ors, _ = client(FakeResponse(403, body))
+    with pytest.raises(ProviderBusy) as error:
+        ors.geocode("Dallas, TX")
+    assert "daily limit" in error.value.message

@@ -38,6 +38,21 @@ CORS_ALLOWED_ORIGINS = _env_list("CORS_ALLOWED_ORIGINS", "http://localhost:5173"
 
 ORS_API_KEY = os.environ.get("ORS_API_KEY", "")
 
+# Backup geocoder (OpenStreetMap Nominatim, no key) for when the OpenRouteService quota runs out.
+# Nominatim requires a User-Agent that identifies the app.
+GEOCODER_FALLBACK = os.environ.get("GEOCODER_FALLBACK", "true").lower() == "true"
+# Real petrol stations for fuel stops, from OpenStreetMap through the Overpass API (no key).
+FUEL_STATIONS = os.environ.get("FUEL_STATIONS", "true").lower() == "true"
+# Comma-separated list of Overpass servers, tried in order; the default is three public mirrors.
+OVERPASS_URLS = _env_list("OVERPASS_URLS") or [
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+    "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+]
+GEOCODER_USER_AGENT = os.environ.get(
+    "GEOCODER_USER_AGENT", "HOS-Trip-Planner/1.0 (https://github.com/Pranav-Sharma-Code/Truck-Trip-Planner)"
+)
+
 INSTALLED_APPS = [
     "corsheaders",
     "rest_framework",

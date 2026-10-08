@@ -35,7 +35,7 @@ class RouteResult:
 
 
 class Geocoder(Protocol):
-    def geocode(self, text) -> GeocodedLocation: ...
+    def geocode(self, text, country=None, parts=None) -> GeocodedLocation: ...
 
 
 class Router(Protocol):

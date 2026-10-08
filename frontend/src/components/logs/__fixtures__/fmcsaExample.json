@@ -1,0 +1,153 @@
+{
+  "date": "2021-04-09",
+  "segments": [
+    {
+      "status": "OFF_DUTY",
+      "start_minute": 0,
+      "end_minute": 360
+    },
+    {
+      "status": "ON_DUTY_NOT_DRIVING",
+      "start_minute": 360,
+      "end_minute": 450
+    },
+    {
+      "status": "DRIVING",
+      "start_minute": 450,
+      "end_minute": 540
+    },
+    {
+      "status": "ON_DUTY_NOT_DRIVING",
+      "start_minute": 540,
+      "end_minute": 570
+    },
+    {
+      "status": "DRIVING",
+      "start_minute": 570,
+      "end_minute": 720
+    },
+    {
+      "status": "OFF_DUTY",
+      "start_minute": 720,
+      "end_minute": 780
+    },
+    {
+      "status": "DRIVING",
+      "start_minute": 780,
+      "end_minute": 900
+    },
+    {
+      "status": "ON_DUTY_NOT_DRIVING",
+      "start_minute": 900,
+      "end_minute": 930
+    },
+    {
+      "status": "DRIVING",
+      "start_minute": 930,
+      "end_minute": 960
+    },
+    {
+      "status": "SLEEPER_BERTH",
+      "start_minute": 960,
+      "end_minute": 1065
+    },
+    {
+      "status": "DRIVING",
+      "start_minute": 1065,
+      "end_minute": 1140
+    },
+    {
+      "status": "ON_DUTY_NOT_DRIVING",
+      "start_minute": 1140,
+      "end_minute": 1260
+    },
+    {
+      "status": "OFF_DUTY",
+      "start_minute": 1260,
+      "end_minute": 1440
+    }
+  ],
+  "totals_minutes": {
+    "OFF_DUTY": 600,
+    "SLEEPER_BERTH": 105,
+    "DRIVING": 465,
+    "ON_DUTY_NOT_DRIVING": 270
+  },
+  "totals_hours": {
+    "OFF_DUTY": 10.0,
+    "SLEEPER_BERTH": 1.75,
+    "DRIVING": 7.75,
+    "ON_DUTY_NOT_DRIVING": 4.5
+  },
+  "total_miles": 350.0,
+  "from_label": "Richmond, VA",
+  "to_label": "Newark, NJ",
+  "remarks": [
+    {
+      "minute": 360,
+      "location": "Richmond, VA",
+      "note": "Pickup"
+    },
+    {
+      "minute": 450,
+      "location": "Richmond, VA",
+      "note": "Driving"
+    },
+    {
+      "minute": 540,
+      "location": "Fredericksburg, VA",
+      "note": "Fuel stop"
+    },
+    {
+      "minute": 570,
+      "location": "Fredericksburg, VA",
+      "note": "Driving"
+    },
+    {
+      "minute": 720,
+      "location": "Baltimore, MD",
+      "note": "30-minute break"
+    },
+    {
+      "minute": 780,
+      "location": "Baltimore, MD",
+      "note": "Driving"
+    },
+    {
+      "minute": 900,
+      "location": "Philadelphia, PA",
+      "note": "Drop-off"
+    },
+    {
+      "minute": 930,
+      "location": "Philadelphia, PA",
+      "note": "Driving"
+    },
+    {
+      "minute": 960,
+      "location": "Cherry Hill, NJ",
+      "note": "10-hour rest"
+    },
+    {
+      "minute": 1065,
+      "location": "Cherry Hill, NJ",
+      "note": "Driving"
+    },
+    {
+      "minute": 1140,
+      "location": "Newark, NJ",
+      "note": "Drop-off"
+    },
+    {
+      "minute": 1260,
+      "location": "Newark, NJ",
+      "note": "Off duty"
+    }
+  ],
+  "recap": {
+    "on_duty_minutes_today": 735,
+    "cycle_used_minutes": 735,
+    "cycle_available_minutes": 3465,
+    "restart_completed": false
+  }
+}

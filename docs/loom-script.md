@@ -11,7 +11,9 @@ hours-of-service rules require, and draws the daily log sheets."
 
 ## 0:30 – Demo: a multi-day trip (1 min 15 s)
 
-1. Click **Multi-day** (Los Angeles, Phoenix, Chicago, 20 hours used) and **Plan trip**.
+1. Show the **Light / Dark / System** switch. Click **India trip**: the country is India and the address fields use
+   State / UT, District and PIN code (change the country to show the labels change). Then click **Multi-day**
+   (Los Angeles, Phoenix, Chicago, 20 hours used) and **Plan trip**.
 2. Summary cards: distance, trip time, 6 log sheets, cycle used. Point at the amber note: the cycle ran out, so a
    34-hour restart was scheduled.
 3. Map: the route line, pickup B and drop-off C, fuel stops, breaks, rests, the restart. Open a popup.
@@ -36,7 +38,7 @@ Mention print or save as PDF, one sheet per page.
 
 ## 3:45 – Testing and honesty (45 s)
 
-- 130 backend tests and 40 frontend tests. Edge cases: exactly 8 and 11 hours, the 14-hour window, cycle near 70,
+- 206 backend tests and 73 frontend tests. Edge cases: exactly 8 and 11 hours, the 14-hour window, cycle near 70,
   fuel at 999, 1,000 and 1,001 miles. 300 random trips must all pass the validator.
 - The validator re-checks a finished plan by looking backwards, so a bug in the scheduler's counters cannot hide.
 - Limits: a 30-minute fuel stop is my assumption; a fully rested start; no traffic or weather; the provider's truck

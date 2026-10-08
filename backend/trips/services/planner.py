@@ -31,8 +31,19 @@ ASSUMPTIONS = [
 ]
 
 
-def build_trip_plan(request, geocoder, router, places, now=None):
-    """`request` is the validated request data; returns a JSON-ready dict."""
+FUEL_STATION_NOTE = (
+    "Fuel stops are placed at a real petrol station within about 5 miles of the route where one is found; "
+    "the small detour is not added to the drive time."
+)
+FUEL_LOOKUP_WAIT_SECONDS = 10  # overall limit for finding stations; after that the plain fuel stops stay
+
+
+def build_trip_plan(request, geocoder, router, places, now=None, fuel_finder=None):
+    """`request` is the validated request data; returns a JSON-ready dict.
+
+    `fuel_finder` (optional) names a real petrol station for each fuel stop; without one, or when it
+    finds nothing, a fuel stop is just placed on the route.
+    """
     locations = _geocode_all(request, geocoder)
     current, pickup, dropoff = (locations[field] for field in LOCATION_FIELDS)
 
@@ -66,7 +77,13 @@ def build_trip_plan(request, geocoder, router, places, now=None):
         (route.distance_miles, dropoff.point, _clean(dropoff.label)),
     ]
 
+    stations = _find_stations(schedule.events, path, fuel_finder)
+
     def resolve(event, mile):
+        if event.id in stations:
+            station = stations[event.id]
+            point = (station.lat, station.lon)
+            return point, f"{station.name}, {describe(point)}"
         if event.type is EventType.PICKUP:
             return pickup.point, _clean(pickup.label)
         if event.type is EventType.DROPOFF:
@@ -82,7 +99,7 @@ def build_trip_plan(request, geocoder, router, places, now=None):
         begin, begin_label = resolve(event, event.start_mile)
         finish, finish_label = resolve(event, event.end_mile)
         labels[event.id] = {"start": begin_label, "end": finish_label}
-        event_rows.append(_event_row(event, begin, finish, labels[event.id]))
+        event_rows.append(_event_row(event, begin, finish, labels[event.id], stations.get(event.id)))
 
     daily_logs = build_daily_logs(schedule.events, schedule.cycle_used_start_minutes, labels)
     kinds = [event.type for event in schedule.events]
@@ -140,13 +157,46 @@ def build_trip_plan(request, geocoder, router, places, now=None):
             ],
         },
         "warnings": schedule.warnings,
-        "assumptions": ASSUMPTIONS,
+        "assumptions": ASSUMPTIONS + ([FUEL_STATION_NOTE] if stations else []),
     }
+
+
+def _find_stations(events, path, finder):
+    """{event id: FuelStation} for the fuel stops that have a real petrol station nearby.
+
+    Looks up every fuel stop at once; a stop whose lookup fails or times out keeps its plain place on the route.
+    """
+    fuel_events = [event for event in events if event.type is EventType.FUEL]
+    if finder is None or not fuel_events:
+        return {}
+
+    pool = ThreadPoolExecutor(max_workers=len(fuel_events))
+    try:
+        futures = {event.id: pool.submit(finder.nearest, *path.point_at(event.start_mile)) for event in fuel_events}
+        stations = {}
+        for event_id, future in futures.items():
+            try:
+                station = future.result(timeout=FUEL_LOOKUP_WAIT_SECONDS)
+            except Exception:  # a slow or broken lookup must never fail the plan
+                continue
+            if station is not None:
+                stations[event_id] = station
+        return stations
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)
 
 
 def _geocode_all(request, geocoder):
     with ThreadPoolExecutor(max_workers=len(LOCATION_FIELDS)) as pool:
-        futures = {field: pool.submit(geocoder.geocode, request[field]) for field in LOCATION_FIELDS}
+        futures = {
+            field: pool.submit(
+                geocoder.geocode,
+                request[field],
+                request.get(field.replace("_location", "_country")),
+                request.get(field.replace("_location", "_parts")),
+            )
+            for field in LOCATION_FIELDS
+        }
     locations = {}
     for field, future in futures.items():
         try:
@@ -169,7 +219,7 @@ def _place(point, label):
     return {"lat": round(point[0], 5), "lon": round(point[1], 5), "label": label}
 
 
-def _event_row(event, begin, finish, label):
+def _event_row(event, begin, finish, label, station=None):
     return {
         "id": event.id,
         "type": event.type.value,
@@ -181,6 +231,7 @@ def _event_row(event, begin, finish, label):
         "end_mile": round(event.end_mile, 1),
         "location": _place(begin, label["start"]),
         "end_location": _place(finish, label["end"]),
+        "station": {"name": station.name, "lat": round(station.lat, 5), "lon": round(station.lon, 5)} if station else None,
         "reason": event.reason,
         "rule": event.rule,
         "clocks_after": event.clocks_after,

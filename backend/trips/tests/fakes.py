@@ -37,8 +37,12 @@ class FakeSession:
 class FakeGeocoder:
     def __init__(self, places):
         self.places = places  # {"Dallas, TX": (lat, lon)} or (lat, lon, label)
+        self.calls = []  # (text, country) for every lookup
+        self.parts = []  # the address parts passed with each lookup
 
-    def geocode(self, text):
+    def geocode(self, text, country=None, parts=None):
+        self.calls.append((text, country))
+        self.parts.append(parts)
         if text not in self.places:
             raise LocationNotFound(f'Could not find "{text}".')
         lat, lon, *label = self.places[text]

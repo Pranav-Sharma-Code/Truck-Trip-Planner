@@ -13,7 +13,7 @@ def _first_error(detail, field=None):
     """Return (field, message) for the first error in a DRF error structure."""
     if isinstance(detail, dict):
         for key, value in detail.items():
-            return _first_error(value, key)
+            return _first_error(value, field or key)  # keep the outermost field name
     if isinstance(detail, (list, tuple)) and detail:
         return _first_error(detail[0], field)
     return field, str(detail)

@@ -5,6 +5,9 @@
  * @property {string} current_location
  * @property {string} pickup_location
  * @property {string} dropoff_location
+ * @property {string} [current_country]  ISO 3166-1 alpha-2 code; limits the search to that country
+ * @property {string} [pickup_country]
+ * @property {string} [dropoff_country]
  * @property {number} current_cycle_used_hours  0 to 70
  * @property {string} [start_time]  ISO 8601 with a UTC offset
  */
@@ -33,6 +36,7 @@
  * @property {number} end_mile
  * @property {Place} location      where the event starts
  * @property {Place} end_location  where the event ends
+ * @property {{name: string, lat: number, lon: number}|null} station  the real petrol station for a fuel stop, if one was found
  * @property {string} reason
  * @property {string} rule
  * @property {Object} clocks_after

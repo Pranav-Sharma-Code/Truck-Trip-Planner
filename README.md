@@ -19,12 +19,15 @@ Stack: **Django + Django REST Framework** (backend) and **React + Vite** (fronte
 | `POST /api/trips/plan/` with validation and clean errors | Done |
 | Trip form, route map with stop markers, summary cards, timeline | Done |
 | Drawn daily log sheets (SVG), print or save as PDF | Done |
+| Address input that adapts to the country (state, district, postal code) | Done |
+| Light, dark and system theme toggle | Done |
+| Fuel stops named at a real petrol station (OpenStreetMap, best effort) | Done |
 | HOS audit view (counters after every event, rule check) | Done |
 | Deployment configuration (Render blueprint, Vercel settings, production settings) | Done |
 | **Hosted live version** | **Not done.** Needs your Render and Vercel accounts; steps are in section 7 |
 | Loom walkthrough | Script is in `docs/loom-script.md`; recording is up to you |
 
-Tests: **130 backend tests** (`pytest`) and **40 frontend tests** (`npm test`). See section 8 for the assessment
+Tests: **206 backend tests** (`pytest`) and **73 frontend tests** (`npm test`). See section 8 for the assessment
 checklist and section 9 for known gaps.
 
 ---
@@ -45,7 +48,7 @@ The hard part of this project is **not** the screens. It is deciding *when the d
 4. Cut the plan into calendar days and draw each day as a log sheet.
 
 The scheduler is plain Python with no Django and no network calls, so it can be tested on its own. That is why it
-has 130 unit tests and the web layer stays thin.
+has 206 unit tests and the web layer stays thin.
 
 ---
 
@@ -107,7 +110,7 @@ evm/
 │     ├─ geo/                 ✔  geometry.py (distance, point at mile N, simplify), places.py (nearest City, ST)
 │     ├─ data/places.csv      ✔  69,772 places worldwide from GeoNames (see credits)
 │     ├─ scripts/ (in backend/) ✔  build_places_index.py rebuilds the CSV
-│     ├─ providers/           ✔  base.py (types), ors.py (OpenRouteService client)
+│     ├─ providers/           ✔  base.py (types), ors.py (OpenRouteService), nominatim.py (backup geocoder)
 │     ├─ exceptions.py        ✔  clean, user-facing planner errors
 │     ├─ services/planner.py  ✔  geocode -> route -> schedule -> validate -> logs -> response
 │     └─ tests/               ✔  test_clock, test_scheduler, test_validator, test_daily_logs, test_geometry, test_places, test_ors, test_api, test_health
@@ -115,12 +118,13 @@ evm/
    ├─ vercel.json, .env.example
    └─ src/
       ├─ api/                 client.js (fetch + clean errors), types.js (JSDoc typedefs)
-      ├─ hooks/               useApiStatus, usePlanTrip, useSlow, useLogDetails, usePrinting
-      ├─ lib/                 format, validation, startTime, eventTypes, tripView, dutyStatus, logGeometry
+      ├─ hooks/               useApiStatus, usePlanTrip, useSlow, useLogDetails, usePrinting, useTheme
+      ├─ lib/                 format, validation, startTime, eventTypes, tripView, dutyStatus, logGeometry,
+      │                      countries, regions, locations (country-aware addresses), theme
       └─ components/
          ├─ ui/               Card, Button, Badge, Alert, Spinner, Tabs
-         ├─ layout/           Header
-         ├─ trip-form/        TripForm, LocationField, CycleField, ExampleTrips
+         ├─ layout/           Header, ThemeToggle
+         ├─ trip-form/        TripForm, LocationField, CountrySelect, CycleField, ExampleTrips
          ├─ results/          TripResults (tabs, links map and timeline)
          ├─ summary/          TripSummary
          ├─ map/              RouteMap, StopMarker, MapLegend
@@ -247,6 +251,23 @@ Talks to [OpenRouteService](https://openrouteservice.org) (free API key, set as 
 - The scheduler and API only depend on two small interfaces (`Geocoder`, `Router` in `providers/base.py`), so tests
   use fakes and need neither the network nor a key.
 
+**Backup geocoder.** The free OpenRouteService key has a daily limit (about 1,000 searches and 2,000 routes). When it
+runs out, or the service is down, place searches fall back to OpenStreetMap's Nominatim, which needs no key
+(`providers/nominatim.py`). It is slower (requests are spaced a second apart, as its usage policy asks) but keeps the
+app working. After a failure the main service is skipped for five minutes so each lookup does not wait on a failing
+request. Routing has no backup, so if the routing quota runs out the app shows "The map service has reached its daily
+limit". One shared client serves all requests, so repeat places are answered from memory without using quota. Set
+`GEOCODER_FALLBACK=false` to turn the backup off, and `GEOCODER_USER_AGENT` to identify your deployment to Nominatim.
+
+**Petrol stations.** A fuel stop is placed where the 1,000-mile limit is reached. If a petrol station is found within
+about 5 miles of that point, the stop is moved to it and takes its name (for example "Bharath Petrol, near Kamareddi, IN"),
+on the map, in the timeline and in the log remarks. Stations come from OpenStreetMap through the Overpass API
+(`providers/overpass.py`, no key needed). This is best effort: the public Overpass servers are shared and sometimes slow
+or busy, so three mirrors are tried in turn, each for a few seconds, and if none answer the stop keeps its plain place on
+the route and the plan is unchanged. After a failure the lookup pauses for five minutes so plans are not slowed each time.
+The stop is only moved in name and place; the small detour is not added to the drive time. Set `FUEL_STATIONS=false` to
+turn it off, and `OVERPASS_URLS` (comma-separated) to use your own servers.
+
 Known limits of the provider: the free tier caps a single route at about 6,000 km (roughly 3,700 miles) and has
 a daily request quota. Its truck profile assumes conservative speeds (a drive of about 190 miles came back as
 5 hours), so planned trips can run longer than a real driver's. The schedule is only as accurate as these times.
@@ -265,7 +286,10 @@ a daily request quota. Its truck profile assumes conservative speeds (a drive of
 }
 ```
 
-`start_time` is optional but must include a UTC offset. Daily logs follow that offset (the "home terminal time"
+`start_time` is optional but must include a UTC offset. Also optional, per place: `current_country`,
+`pickup_country`, `dropoff_country` (two-letter ISO codes such as `IN`, which limit the search to that country) and
+`current_parts`, `pickup_parts`, `dropoff_parts` (`{place, area, region, postal}`, used for the fall-back search).
+`start_time` must include a UTC offset. Daily logs follow that offset (the "home terminal time"
 the FMCSA guide asks for). Without it the server uses the current time in UTC.
 
 The response has these parts:
@@ -352,27 +376,44 @@ npm run build                 # production build into dist/
 ```
 
 `VITE_API_BASE_URL` in `frontend/.env` points at the API (default `http://localhost:8000`).
-The page follows your system's light or dark setting. Map tiles come from OpenStreetMap's public tile server
-(fine for a demo; a busy site would need its own tile provider). OpenStreetMap has no dark style, so in dark mode the
-tiles are inverted with a CSS filter. Scroll-wheel zoom turns on after you click the map, so scrolling the page
-over the map does not zoom it.
+Map tiles come from OpenStreetMap's public tile server (fine for a demo; a busy site would need its own tile
+provider). OpenStreetMap has no dark style, so in dark mode the tiles are inverted with a CSS filter. Scroll-wheel
+zoom turns on after you click the map, so scrolling the page over the map does not zoom it.
 
-The form checks input as you type (locations required, cycle hours between 0 and 70, valid start time) and the
-API checks it again. If the server rejects a place, the message appears under that field until you edit it.
-The start time defaults to now, rounded up to a quarter hour, and is sent with your local UTC offset. Three
-example trips fill the form in one click.
+**Theme.** The header has a Light / Dark / System switch. System follows the device and changes with it. The choice
+is remembered in this browser, and a small script in `index.html` applies it before the first paint so there is no
+flash of the wrong colours. Colours are tokens in `src/index.css`; the theme is just a `data-theme` attribute on the
+page.
 
-The results view has three parts:
+**Addresses that follow the country.** Pick a country at the top of the form (or leave "Anywhere"). Under each place,
+"Add state, district & PIN code" opens extra fields whose names, lists and rules change with the country:
 
-- **Summary cards**: distance, driving time, trip duration and arrival, log sheets, cycle used before and after,
-  cycle hours left, and the number of stops, plus a badge saying whether the plan stays within the HOS limits.
-  Warnings such as a scheduled 34-hour restart appear in an amber (not red) box.
-- **Map**: the route line, and a marker for the start (A), pickup (B), drop-off (C), and every fuel stop, break,
-  rest and restart. Each stop type has its own colour and icon, with a legend underneath. Clicking a marker shows
-  when, where and why.
-- **Timeline**: every event in order, grouped by day, with its time range, duration, location, mileage, the reason,
-  and the regulation behind it. Clicking an item scrolls the map into view, zooms to that stop and opens its
-  popup; clicking a marker highlights its timeline item.
+| Country | Region | Area | Postal code |
+|---|---|---|---|
+| India | State / UT (all 36 as a list) | District | PIN code, 6 digits |
+| United States | State (list) | County | ZIP code, 5 or 5+4 digits |
+| Canada | Province / territory (list) | Municipality | Postal code, like M5V 2T6 |
+| United Kingdom | Nation (list) | County | Postcode |
+| Australia | State / territory (list) | Suburb / local area | Postcode, 4 digits |
+| Germany, Mexico | State (list) | District / municipality | 5 digits |
+| United Arab Emirates | Emirate (list) | Area / community | none: the field is hidden |
+| Any other country | free text | District / county | free text, no rule |
+
+The country list (about 250) comes from the browser, so names are never out of date. Each place can also have its
+own country, which is how a trip across a border works (set the trip to "Anywhere", then choose a country per
+place). Changing a country clears that place's state, district and postal code, so nothing stale is left behind.
+Postal codes are checked as you type; the other parts are free text or a list.
+
+What is sent to the API: the place as one search text (for example `Pune, Pune, Maharashtra, 411001`), an optional
+country code per place, and the address parts. A free-text geocoder can collapse a long address to just the state,
+so the server tries the most specific search first and falls back to looser ones (dropping postal code, then
+district) when a result is only a state or country. If the last search still gives a state or country, that is used
+as it is.
+
+The form checks input as you type (a place or postal code is required, postal codes follow the country, cycle hours
+between 0 and 70, valid start time) and the API checks it again. If the server rejects a place, the message appears
+under that field until you edit it. The start time defaults to now, rounded up to a quarter hour, and is sent with
+your local UTC offset. Four example trips (three in the US, one in India) fill the form in one click.
 
 Design notes: colours are tokens in `src/index.css`, so light and dark share the same classes. Each duty status
 has one colour used on the map, timeline and log sheets. Trip times are shown in the trip's own UTC offset
@@ -398,7 +439,7 @@ python -m venv .venv
 pip install -r requirements-dev.txt        # runtime + pytest
 copy .env.example .env                  # macOS/Linux: cp .env.example .env
 python manage.py runserver
-python -m pytest -q                     # run the 130 backend tests
+python -m pytest -q                     # run the 206 backend tests
 ```
 
 Check it: open `http://localhost:8000/api/health/`. It should return `{"status": "ok"}`.
@@ -418,6 +459,10 @@ The tests do not need it.
 | `NUM_PROXIES` | production: proxies in front of the app (1 on Render), so rate limits are per visitor |
 | `SECURE_SSL_REDIRECT` | production: redirect http to https (default on; `/api/health/` is exempt) |
 | `LOG_LEVEL` | optional, default `INFO` |
+| `FUEL_STATIONS` | `true` (default) to name fuel stops at real petrol stations; `false` turns the lookup off |
+| `OVERPASS_URLS` | optional comma-separated Overpass servers, tried in order (three public mirrors by default) |
+| `GEOCODER_FALLBACK` | `true` (default) to use Nominatim when OpenRouteService cannot geocode |
+| `GEOCODER_USER_AGENT` | identifies the app to Nominatim; has a sensible default |
 
 Frontend: `VITE_API_BASE_URL` (the API's address).
 
@@ -448,6 +493,12 @@ Things to know:
 - Render's free service sleeps after about 15 minutes idle; the first request can take up to a minute. The app
   pings `/api/health/` when the page opens and says "Waking up the server" while it waits. Open the live site yourself
   shortly before a demo or a grader tests it.
+- **Render free hours.** Render's free plan gives 750 instance hours per month for the whole workspace, and a free web
+  service only uses hours while it is running (it sleeps after 15 minutes without traffic). One service cannot use more
+  than about 744 hours in a month, so it will not run out on its own; if the 750 hours are ever used up (several services
+  in one workspace), Render suspends them until the next month. Check Usage and Billing in the Render dashboard.
+- **OpenRouteService quotas** (free plan): 1,000 searches and 2,000 routes a day. Usage per key is on the OpenRouteService
+  dashboard. Use a separate key for the hosted app, so testing on your computer cannot use up the live site's quota.
 - OpenRouteService's free plan has a daily request limit (each plan uses one routing call and up to three
   geocoding calls, with in-memory caching for repeat places).
 - Vercel preview URLs are different origins; add them to `CORS_ALLOWED_ORIGINS` if you want to use them.
@@ -460,20 +511,20 @@ Against the assessment and the master spec (section 17). A tick means it was run
 
 | Item | Status |
 |---|---|
-| Django backend works | Yes; 130 tests, and run against the live routing service |
+| Django backend works | Yes; 206 tests, and run against the live routing service |
 | React frontend works | Yes; tried in Chrome (dark mode) |
 | Current, pickup, drop-off and cycle inputs | Yes, with validation on both sides |
 | Locations are geocoded; a real route is drawn on a map | Yes (OpenRouteService, OpenStreetMap tiles) |
 | Fuel, rest, pickup and drop-off stops visible | Yes: map markers, legend and timeline |
 | 11-hour, 14-hour, 30-minute and 70-hour rules enforced | Yes, and re-checked by a separate validator |
 | Pickup and drop-off 1 hour each, counted as on duty | Yes |
-| Fuel at least every 1,000 miles | Yes (30-minute stops, assumed) |
+| Fuel at least every 1,000 miles | Yes (30-minute stops, assumed); named at a real petrol station when OpenStreetMap answers |
 | Trips span several days; one sheet per day | Yes (for example 6 sheets for Los Angeles to Chicago) |
 | ELD grid drawn, not just text | Yes (SVG) |
 | Daily status totals reconcile to 24 hours | Yes, checked in code and tests |
 | Cycle usage tracked | Yes |
 | Edge cases tested | Yes: exact 8 h and 11 h, 14-hour window, cycle near 70, 34-hour restart, fuel at 999/1,000/1,001 miles, bad input, provider failures |
-| UI polished and responsive | Polished and checked on a desktop-width window in dark mode. **Not checked on a phone or in light mode** |
+| UI polished and responsive | Polished and checked on a desktop-width window in light and dark mode. **Not checked on a phone** |
 | README complete | Yes |
 | Deployment works | **Not hosted yet** (section 7) |
 | Loom can be recorded in 3 to 5 minutes | Script ready |
@@ -482,8 +533,13 @@ Against the assessment and the master spec (section 17). A tick means it was run
 ## 9. Known gaps and limits
 
 - **Not hosted.** The configuration is ready; creating the accounts is yours to do.
-- **Phone layout and light mode were not looked at.** They are built (single column on small screens, theme tokens
-  for light), but I have not seen them.
+- **Phone layout was not looked at.** It is built (single column on small screens) but I have not seen it. Light
+  mode and dark mode were both checked on a desktop-width window.
+- **Address pick lists exist for eight countries** (India, US, Canada, UK, Australia, Germany, Mexico, UAE). Elsewhere
+  the region is free text. Districts are always free text; there is no list of every district.
+- **The India example was checked in the form, not end to end.** The routing service's free daily geocoding quota ran
+  out during testing, so the fall-back search is covered by unit tests with fake responses, not yet by a live run.
+  Quota exhaustion now shows a clear message instead of a key error.
 - **Truck speeds are conservative.** The routing service's truck profile gave about 5 hours for 194 miles, so trips
   run longer than a real driver's. Times are only as good as the provider's.
 - **Single routing limit.** One plan cannot exceed about 3,700 miles in total (the provider's 6,000 km cap).
@@ -491,7 +547,8 @@ Against the assessment and the master spec (section 17). A tick means it was run
   never roll off, no traffic or weather. They are shown in the app on the audit tab.
 - **Not modelled**: split sleeper, adverse conditions, short-haul exceptions, inspections, team drivers, time-zone
   changes during the trip, and the "last 5 days" recap figure.
-- **Stops are placed where a limit is reached**, not at real truck stops, and described as "near City, ST"
+- **Fuel stops use a real petrol station only when one is found** (best effort, see section 5.7). Breaks and rests are
+  still placed where a limit is reached, not at real truck stops, and described as "near City, ST"
   (or "near City, CC" outside the US, with the ISO country code).
 - **The rules are the US federal ones (FMCSA)**, applied to every trip, including trips elsewhere in the world.
   The assessment does not say to restrict the app to the US, so it does not. Ambiguous names ("Paris") resolve to

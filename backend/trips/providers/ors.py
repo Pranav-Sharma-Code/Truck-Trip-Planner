@@ -12,6 +12,43 @@ ORS_DISTANCE_LIMIT = 2004  # route longer than 6,000 km
 ORS_NO_ROUTE = (2009, 2010)  # route not found / no routable point near a coordinate
 
 
+# Result layers coarser than a city. For a typed place these mean "could not match the details".
+COARSE_LAYERS = {"region", "macroregion", "dependency", "country", "continent", "empire", "ocean", "marinearea"}
+
+# Which address parts to combine, most specific first. Each search drops detail that may not match.
+QUERY_COMBINATIONS = (
+    ("place", "area", "region", "postal"),
+    ("place", "region", "postal"),
+    ("place", "area", "region"),
+    ("place", "region"),
+    ("place",),
+    # no place typed: a postal code or area is all there is
+    ("area", "region", "postal"),
+    ("region", "postal"),
+    ("area", "region"),
+    ("postal",),
+    ("area",),
+    ("region",),
+)
+
+
+def search_queries(text, parts):
+    """Search texts to try, most specific first. Without `parts` it is just `text`."""
+    if not parts:
+        return [text]
+    clean = {name: (parts.get(name) or "").strip() for name in ("place", "area", "region", "postal")}
+    queries = [text]
+    for combination in QUERY_COMBINATIONS:
+        if combination[0] != "place" and clean["place"]:
+            continue  # only worth it when no place was typed
+        if any(not clean[name] for name in combination):
+            continue
+        query = ", ".join(clean[name] for name in combination)
+        if query not in queries:
+            queries.append(query)
+    return queries
+
+
 def _same_point(a, b):
     return round(a[0], 5) == round(b[0], 5) and round(a[1], 5) == round(b[1], 5)
 
@@ -26,28 +63,56 @@ class OrsClient:
         self.timeout = timeout
         self._geocode_cache = {}
 
-    def geocode(self, text):
-        key = " ".join(text.lower().split())
+    def geocode(self, text, country=None, parts=None):
+        """Find a place.
+
+        `country` (ISO alpha-2, optional) limits the search to that country. `parts` is the address
+        split into place, area, region and postal; with it the most specific search is tried first and
+        looser ones after, because a free-text search that cannot match every part can fall back to just
+        the state or country.
+        """
+        key = (" ".join(text.lower().split()), country)
         if key in self._geocode_cache:
             return self._geocode_cache[key]
 
-        data = self._request(
-            "get",
-            "/geocode/search",
-            params={"api_key": self.api_key, "text": text, "size": 1},
-        )
-        features = data.get("features") or []
-        if not features:
-            raise LocationNotFound(f'Could not find "{text}". Try a city and state or country, like "Dallas, TX" or "Pune, India".')
+        queries = search_queries(text, parts)
+        accepted, too_coarse = None, None
+        for query in queries:
+            feature = self._search(query, country)
+            if feature is None:
+                continue
+            if feature["properties"].get("layer") in COARSE_LAYERS and query != queries[-1]:
+                too_coarse = too_coarse or feature  # keep it in case nothing better turns up
+                continue
+            accepted = feature
+            break
+        accepted = accepted or too_coarse
+        if accepted is None:
+            where = "in the selected country" if country else "anywhere"
+            raise LocationNotFound(
+                f'Could not find "{text}" {where}. Check the spelling, or add a state, district or postal code.'
+            )
 
-        lon, lat = features[0]["geometry"]["coordinates"][:2]
-        label = features[0].get("properties", {}).get("label") or text
+        lon, lat = accepted["geometry"]["coordinates"][:2]
+        label = accepted["properties"].get("label") or text
         location = GeocodedLocation(input=text, label=label, lat=lat, lon=lon)
 
         if len(self._geocode_cache) >= CACHE_LIMIT:
             self._geocode_cache.clear()
         self._geocode_cache[key] = location
         return location
+
+    def _search(self, query, country):
+        """The best match for one search text, or None."""
+        params = {"api_key": self.api_key, "text": query, "size": 1}
+        if country:
+            params["boundary.country"] = country
+        features = self._request("get", "/geocode/search", params=params).get("features") or []
+        if not features:
+            return None
+        feature = features[0]
+        feature.setdefault("properties", {})
+        return feature
 
     def route(self, points):
         """Route through (lat, lon) points; consecutive identical points become zero-length legs."""
@@ -116,6 +181,8 @@ class OrsClient:
         if status == 429:
             raise ProviderBusy("The routing service is busy right now. Please try again shortly.")
         if status in (401, 403):
+            if "quota" in self._error_text(response):
+                raise ProviderBusy("The map service has reached its daily limit. Please try again later.")
             raise RoutingFailed("The routing service rejected the API key.")
         code = self._error_code(response)
         if code == ORS_DISTANCE_LIMIT:
@@ -125,6 +192,15 @@ class OrsClient:
         if status == 404 or code in ORS_NO_ROUTE:
             raise RouteNotFound("No drivable route was found between those locations.")
         raise RoutingFailed("The routing service could not plan this route.")
+
+    @staticmethod
+    def _error_text(response):
+        try:
+            error = response.json().get("error")
+        except (ValueError, AttributeError):
+            return ""
+        message = error.get("message") if isinstance(error, dict) else error
+        return str(message or "").lower()
 
     @staticmethod
     def _error_code(response):

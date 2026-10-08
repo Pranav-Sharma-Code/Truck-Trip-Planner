@@ -1,28 +1,44 @@
+import { postalError } from './countries'
+import { LOCATION_KEYS, composeQuery, effectiveCountry } from './locations'
 import { toIsoWithOffset } from './startTime'
 
 export const MAX_LOCATION_LENGTH = 200
 export const MAX_CYCLE_HOURS = 70
 
-export const LOCATION_FIELDS = ['current_location', 'pickup_location', 'dropoff_location']
+// Input ids double as error keys. A place's main field keeps the API's field name (`pickup_location`)
+// so a server error about that place lands on the right input.
+export const placeName = (key) => `${key}_location`
+export const postalName = (key) => `${key}_postal`
+
+const FIELD_NAMES = [
+  ...LOCATION_KEYS.flatMap((key) => [placeName(key), postalName(key)]),
+  'current_cycle_used_hours',
+  'start_time',
+]
 
 // Mirrors the API rules so mistakes show up as the user types; the API still checks everything.
-export function validateField(name, value) {
-  if (LOCATION_FIELDS.includes(name)) {
-    const text = value.trim()
-    if (!text) return 'Enter a location'
-    if (text.length > MAX_LOCATION_LENGTH) return `Keep it under ${MAX_LOCATION_LENGTH} characters`
+export function validateField(name, values) {
+  const key = LOCATION_KEYS.find((candidate) => name === placeName(candidate) || name === postalName(candidate))
+
+  if (key) {
+    const location = values[key]
+    if (name === postalName(key)) return postalError(effectiveCountry(location, values.country), location.postal)
+
+    if (!location.place.trim() && !location.postal.trim()) return 'Enter a place or a postal code'
+    if (composeQuery(location).length > MAX_LOCATION_LENGTH) return `Keep it under ${MAX_LOCATION_LENGTH} characters`
     return null
   }
 
   if (name === 'current_cycle_used_hours') {
-    if (value.trim() === '') return 'Enter the hours used'
-    const hours = Number(value)
+    const text = values.current_cycle_used_hours
+    if (text.trim() === '') return 'Enter the hours used'
+    const hours = Number(text)
     if (!Number.isFinite(hours)) return 'Enter a number'
     if (hours < 0 || hours > MAX_CYCLE_HOURS) return `Must be between 0 and ${MAX_CYCLE_HOURS}`
     return null
   }
 
-  if (name === 'start_time' && value && toIsoWithOffset(value) === null) {
+  if (name === 'start_time' && values.start_time && toIsoWithOffset(values.start_time) === null) {
     return 'Enter a valid date and time'
   }
   return null
@@ -30,20 +46,27 @@ export function validateField(name, value) {
 
 export function validateTrip(values) {
   const errors = {}
-  for (const name of [...LOCATION_FIELDS, 'current_cycle_used_hours', 'start_time']) {
-    const message = validateField(name, values[name] ?? '')
+  for (const name of FIELD_NAMES) {
+    const message = validateField(name, values)
     if (message) errors[name] = message
   }
   return errors
 }
 
-/** Form values (all strings) to the API request body. */
+/** Form values to the API request body. Countries are sent as ISO codes when one applies. */
 export function toRequest(values) {
-  const request = {
-    current_location: values.current_location.trim(),
-    pickup_location: values.pickup_location.trim(),
-    dropoff_location: values.dropoff_location.trim(),
-    current_cycle_used_hours: Number(values.current_cycle_used_hours),
+  const request = { current_cycle_used_hours: Number(values.current_cycle_used_hours) }
+  for (const key of LOCATION_KEYS) {
+    request[placeName(key)] = composeQuery(values[key])
+    const country = effectiveCountry(values[key], values.country)
+    if (country) request[`${key}_country`] = country
+
+    // With details filled in, also send the parts so the server can fall back to a looser search
+    // if the full address does not match (a free-text search can collapse to just the state).
+    const { place, area, region, postal } = values[key]
+    if (area.trim() || region.trim() || postal.trim()) {
+      request[`${key}_parts`] = { place: place.trim(), area: area.trim(), region: region.trim(), postal: postal.trim() }
+    }
   }
   if (values.start_time) request.start_time = toIsoWithOffset(values.start_time)
   return request
