@@ -15,7 +15,6 @@ export function usePlanTrip() {
     const current = new AbortController()
     controller.current = current
 
-    // Keep showing the previous plan while the new one loads.
     setState((previous) => ({ status: 'loading', plan: previous.plan, error: null }))
     try {
       const plan = await planTrip(request, { signal: current.signal })

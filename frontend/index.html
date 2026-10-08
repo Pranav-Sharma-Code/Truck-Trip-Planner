@@ -7,8 +7,6 @@
     <meta name="color-scheme" content="light dark" />
     <meta name="description" content="Plan truck trips under FMCSA hours-of-service rules and get filled daily log sheets." />
     <title>HOS Trip Planner</title>
-    <!-- Sets the theme before the first paint so there is no flash of the wrong colours.
-         Keep the storage key and the rule in step with src/lib/theme.js. -->
     <script>
       (function () {
         var theme = 'light'
@@ -17,7 +15,7 @@
           var dark = window.matchMedia('(prefers-color-scheme: dark)').matches
           theme = saved === 'light' || saved === 'dark' ? saved : dark ? 'dark' : 'light'
         } catch (error) {
-          /* storage blocked: fall back to light */
+          
         }
         document.documentElement.dataset.theme = theme
       })()

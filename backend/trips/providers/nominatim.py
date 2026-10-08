@@ -1,8 +1,4 @@
-"""Backup geocoder: OpenStreetMap Nominatim, which needs no API key.
 
-Used only when the main geocoder is out of quota or down. Nominatim's usage policy allows about one request
-per second and requires an identifying User-Agent, so calls are spaced out and the agent is configurable.
-"""
 
 import threading
 import time
@@ -79,7 +75,6 @@ class NominatimGeocoder:
 
     @staticmethod
     def _label(item, fallback):
-        """A short label such as "Pune, Maharashtra, India" instead of the long display name."""
         address = item.get("address") or {}
         place = item.get("name") or next((address[key] for key in CITY_KEYS if address.get(key)), None)
         label = ", ".join(part for part in (place, address.get("state"), address.get("country")) if part)

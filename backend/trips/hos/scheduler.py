@@ -8,11 +8,6 @@ MAX_ITERATIONS = 5000
 
 
 def plan_trip(to_pickup, to_dropoff, start, cycle_used_minutes):
-    """Schedule driving, work stops and legally required rest for one trip.
-
-    `start` must be timezone-aware. Events are contiguous, so the driver is
-    always in exactly one duty status from `start` to the end of drop-off.
-    """
     if start.tzinfo is None:
         raise ValueError("start must be timezone-aware")
     if not 0 <= cycle_used_minutes <= c.CYCLE_LIMIT:

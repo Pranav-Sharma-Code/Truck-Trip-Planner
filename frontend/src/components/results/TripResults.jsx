@@ -19,15 +19,14 @@ const WARNING_TITLES = {
 }
 
 function Panel({ id, active, children }) {
-  // Panels stay mounted so the map keeps its zoom and selection when you switch tabs.
   return (
-    <div id={panelId(id)} role="tabpanel" aria-labelledby={tabId(id)} hidden={!active} className="space-y-4 pt-4 print:pt-0">
+    <div id={panelId(id)} role="tabpanel" aria-labelledby={tabId(id)} hidden={!active} 
+         className="space-y-4 pt-4 print:pt-0">
       {children}
     </div>
   )
 }
 
-/** Everything shown for a planned trip. `selection` ties the map and the timeline together. */
 export default function TripResults({ plan, loading }) {
   const [tab, setTab] = useState('route')
   const [selection, setSelection] = useState(null)
@@ -35,7 +34,6 @@ export default function TripResults({ plan, loading }) {
   const markers = useMemo(() => (plan ? buildMarkers(plan) : []), [plan])
   const present = useMemo(() => new Set(markers.map((marker) => marker.type)), [markers])
 
-  // Picking a stop in the timeline moves the map, so make sure the map is on screen.
   const selectFromTimeline = (next) => {
     setSelection(next)
     const rect = mapRef.current?.getBoundingClientRect()

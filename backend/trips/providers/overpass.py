@@ -1,8 +1,4 @@
-"""Finds real petrol stations near a point, using OpenStreetMap data through the Overpass API (no key needed).
 
-Used to turn "a fuel stop is needed around here" into a named station. It never raises: if the service is slow,
-busy or down, the answer is simply "none found" and the plan keeps its plain fuel stop.
-"""
 
 import logging
 import time
@@ -30,7 +26,7 @@ class FuelStation:
     name: str
     lat: float
     lon: float
-    distance_miles: float  # from the point that was searched
+    distance_miles: float 
 
 
 class FuelStationFinder:
@@ -48,9 +44,8 @@ class FuelStationFinder:
         self._skip_until = 0.0
 
     def nearest(self, lat, lon):
-        """The closest named petrol station within the search radius, or None."""
         if self._clock() < self._skip_until:
-            return None  # the servers failed a moment ago; do not make every plan wait for them again
+            return None  
         try:
             elements = self._query(lat, lon)
         except (requests.RequestException, ValueError, KeyError, TypeError) as error:
@@ -72,7 +67,6 @@ class FuelStationFinder:
 
         if not stations:
             return None
-        # A station with a name is more useful on a log than the nearest anonymous one.
         named = [station for station in stations if station.name != UNNAMED]
         return min(named or stations, key=lambda station: station.distance_miles)
 
@@ -92,5 +86,5 @@ class FuelStationFinder:
                     raise ValueError(f"{url} answered {response.status_code}")
                 return response.json()["elements"]
             except (requests.RequestException, ValueError, KeyError) as error:
-                last_error = error  # try the next mirror
+                last_error = error  
         raise last_error

@@ -1,6 +1,3 @@
-// Trip timestamps carry the home terminal's UTC offset. They are read straight from the
-// string instead of through Date, which would shift them into the viewer's timezone.
-
 const ISO_PATTERN = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/
 
 function parts(iso) {
@@ -18,7 +15,6 @@ export function formatTime(iso) {
   return `${hour12}:${String(p.minute).padStart(2, '0')} ${suffix}`
 }
 
-// Accepts a full timestamp or a plain YYYY-MM-DD date.
 export function formatDate(isoOrDate, { weekday = true } = {}) {
   const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(isoOrDate)
   if (!match) return ''
@@ -48,7 +44,6 @@ export function formatMiles(miles) {
   return `${Math.round(miles).toLocaleString('en-US')} mi`
 }
 
-// Minute of the day (0-1440) as a clock label, e.g. 870 -> "2:30 PM".
 export function formatMinuteOfDay(minute) {
   const hour = Math.floor(minute / 60) % 24
   return formatTime(`2000-01-01T${String(hour).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`)
@@ -59,7 +54,6 @@ function dayNumber(iso) {
   return p ? Date.UTC(p.year, p.month - 1, p.day) / 86_400_000 : NaN
 }
 
-// "6:30 PM - 4:30 AM (+1 d)": the suffix appears when the event ends on a later day than it starts.
 export function formatTimeRange(startIso, endIso) {
   const range = `${formatTime(startIso)} \u2013 ${formatTime(endIso)}`
   const days = dayNumber(endIso) - dayNumber(startIso)

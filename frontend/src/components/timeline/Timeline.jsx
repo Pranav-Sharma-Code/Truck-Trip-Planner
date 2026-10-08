@@ -9,7 +9,16 @@ export default function Timeline({ events, selection, onSelect }) {
     <div className="space-y-5">
       {days.map((day) => (
         <section key={day.date} aria-label={`Day ${day.number}`}>
-          <h3 className="mb-1.5 flex items-center gap-2 px-3 text-xs font-semibold uppercase tracking-wide text-muted">
+          <h3 className="mb-1.5 
+                         flex 
+                         items-center 
+                         gap-2 
+                         px-3 
+                         text-xs 
+                         font-semibold 
+                         uppercase 
+                         tracking-wide 
+                         text-muted">
             Day {day.number}
             <span className="font-normal normal-case tracking-normal">{formatDate(day.date)}</span>
           </h3>

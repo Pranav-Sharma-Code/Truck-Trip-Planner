@@ -1,6 +1,4 @@
-// Draws the FMCSA guide's worked example (Richmond to Newark, 04/09/2021) with the real sheet component and
-// checks what ends up on the page. The data comes from the backend's daily log builder, so this also proves the
-// two halves agree. The guide prints 350 miles and totals of 10, 1.75, 7.75 and 4.5 hours.
+
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 

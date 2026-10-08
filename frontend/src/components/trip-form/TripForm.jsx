@@ -16,7 +16,7 @@ import LocationField from './LocationField'
 const LABELS = { current: 'Current location', pickup: 'Pickup location', dropoff: 'Drop-off location' }
 
 const INITIAL_VALUES = () => ({
-  country: '', // the whole trip's country; '' means anywhere
+  country: '', 
   ...emptyLocations(),
   current_cycle_used_hours: '0',
   start_time: defaultStartValue(),
@@ -24,10 +24,6 @@ const INITIAL_VALUES = () => ({
 
 const DETAILS_CLEARED = { region: '', area: '', postal: '' }
 
-/**
- * `serverError` is the last ApiError and `submitted` the request it was for; a server message about
- * a field is shown only until that field's text is edited.
- */
 export default function TripForm({ loading, serverError, submitted, onSubmit }) {
   const [values, setValues] = useState(INITIAL_VALUES)
   const [touched, setTouched] = useState({})
@@ -44,7 +40,6 @@ export default function TripForm({ loading, serverError, submitted, onSubmit }) 
   const touch = (name) => setTouched((current) => ({ ...current, [name]: true }))
   const change = (name, value) => setValues((current) => ({ ...current, [name]: value }))
 
-  // State, district and postal code belong to one country, so they are cleared when the country changes.
   const changeCountry = (code) =>
     setValues((current) => {
       const next = { ...current, country: code }

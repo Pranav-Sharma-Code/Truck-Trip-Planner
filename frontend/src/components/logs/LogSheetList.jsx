@@ -8,7 +8,6 @@ import Button from '../ui/Button'
 import LogDetailsForm from './LogDetailsForm'
 import LogSheet from './LogSheet'
 
-/** All of a trip's daily logs: one visible at a time on screen, every sheet on its own page when printed. */
 export default function LogSheetList({ logs }) {
   const [details, updateDetail] = useLogDetails()
   const [active, setActive] = useState(0)

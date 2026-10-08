@@ -3,7 +3,6 @@ import { Field, Lines, PAPER } from './paper'
 
 export const FOOTER_HEIGHT = 250
 
-// A bordered box with a caption and a value, used for the recap figures.
 function RecapBox({ x, width, caption, value }) {
   return (
     <g>
@@ -16,7 +15,6 @@ function RecapBox({ x, width, caption, value }) {
   )
 }
 
-/** Shipping documents, the recap block and the signature line. `top` is the y of the footer. */
 export default function LogFooter({ log, details, top }) {
   const { recap } = log
   const onDuty = formatLogHours(recap.on_duty_minutes_today)

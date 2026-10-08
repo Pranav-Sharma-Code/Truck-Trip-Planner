@@ -5,19 +5,12 @@ EARTH_RADIUS_MILES = 3958.8
 
 
 def haversine_miles(a, b):
-    """Great-circle distance between two (lat, lon) points."""
     lat1, lon1, lat2, lon2 = map(radians, (a[0], a[1], b[0], b[1]))
     h = sin((lat2 - lat1) / 2) ** 2 + cos(lat1) * cos(lat2) * sin((lon2 - lon1) / 2) ** 2
     return 2 * EARTH_RADIUS_MILES * asin(sqrt(h))
 
 
 class RoutePath:
-    """A route polyline that can be asked "where are we N miles in?".
-
-    The routing service reports its own distance, which differs slightly from
-    the straight-line sum over the polyline. Mileage is scaled so that the
-    full route distance lands on the last point.
-    """
 
     def __init__(self, points, distance_miles):
         if len(points) < 2:
@@ -43,10 +36,6 @@ class RoutePath:
 
 
 def simplify(points, tolerance_miles=0.1):
-    """Douglas-Peucker line simplification; keeps the first and last point.
-
-    Uses a flat local projection, which is accurate enough at this tolerance.
-    """
     if len(points) < 3:
         return list(points)
 

@@ -17,12 +17,10 @@ function load() {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY))
     return { ...EMPTY_DETAILS, ...saved }
   } catch {
-    // Storage can be blocked (private windows) or hold junk; start blank instead.
     return EMPTY_DETAILS
   }
 }
 
-/** Header details for the log sheets (carrier, vehicle, ...). Remembered in this browser only. */
 export function useLogDetails() {
   const [details, setDetails] = useState(load)
 
@@ -32,7 +30,6 @@ export function useLogDetails() {
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
       } catch {
-        // Not being able to save is fine; the sheets still use what is typed.
       }
       return next
     })

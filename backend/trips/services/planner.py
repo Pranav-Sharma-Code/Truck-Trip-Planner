@@ -1,8 +1,4 @@
-"""Turns a trip request into a full plan: route, stops, daily logs, summary.
 
-Geocoding and routing come in through the `geocoder` and `router` arguments so
-the whole flow can be tested without the network.
-"""
 
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
@@ -18,7 +14,7 @@ from ..hos.validator import validate
 LOCATION_FIELDS = ("current_location", "pickup_location", "dropoff_location")
 NEAR_PLACE_MILES = 8  # beyond this a stop is described as "near City, ST"
 GEOMETRY_TOLERANCE_MILES = 0.15
-ANCHOR_SNAP_MILES = 0.25  # events this close to a trip location are placed at it
+ANCHOR_SNAP_MILES = 0.25  
 
 ASSUMPTIONS = [
     "Property-carrying driver on the 70-hour/8-day schedule, with no adverse driving conditions.",
@@ -39,11 +35,7 @@ FUEL_LOOKUP_WAIT_SECONDS = 10  # overall limit for finding stations; after that 
 
 
 def build_trip_plan(request, geocoder, router, places, now=None, fuel_finder=None):
-    """`request` is the validated request data; returns a JSON-ready dict.
-
-    `fuel_finder` (optional) names a real petrol station for each fuel stop; without one, or when it
-    finds nothing, a fuel stop is just placed on the route.
-    """
+    
     locations = _geocode_all(request, geocoder)
     current, pickup, dropoff = (locations[field] for field in LOCATION_FIELDS)
 
@@ -69,8 +61,7 @@ def build_trip_plan(request, geocoder, router, places, now=None, fuel_finder=Non
             return f"{point[0]:.2f}, {point[1]:.2f}"
         return place.label if distance <= NEAR_PLACE_MILES else f"near {place.label}"
 
-    # The three places the user typed keep the geocoder's name; the geocoder puts a city at its
-    # geographic centre, which can be miles from the nearest town in the places list.
+   
     anchors = [
         (0.0, current.point, _clean(current.label)),
         (to_pickup.distance_miles, pickup.point, _clean(pickup.label)),
@@ -162,10 +153,6 @@ def build_trip_plan(request, geocoder, router, places, now=None, fuel_finder=Non
 
 
 def _find_stations(events, path, finder):
-    """{event id: FuelStation} for the fuel stops that have a real petrol station nearby.
-
-    Looks up every fuel stop at once; a stop whose lookup fails or times out keeps its plain place on the route.
-    """
     fuel_events = [event for event in events if event.type is EventType.FUEL]
     if finder is None or not fuel_events:
         return {}
@@ -231,7 +218,10 @@ def _event_row(event, begin, finish, label, station=None):
         "end_mile": round(event.end_mile, 1),
         "location": _place(begin, label["start"]),
         "end_location": _place(finish, label["end"]),
-        "station": {"name": station.name, "lat": round(station.lat, 5), "lon": round(station.lon, 5)} if station else None,
+        "station": {"name": station.name, 
+                    "lat": round(station.lat, 5), 
+                    "lon": round(station.lon, 5)} 
+                    if station else None,
         "reason": event.reason,
         "rule": event.rule,
         "clocks_after": event.clocks_after,

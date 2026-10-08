@@ -20,7 +20,6 @@ function WheelZoomOnClick() {
   return null
 }
 
-// The map lives in a panel that can be hidden and shown again; Leaflet must be told when its size changes.
 function ResizeWatcher() {
   const map = useMap()
   useEffect(() => {
@@ -39,7 +38,6 @@ function FitRoute({ positions }) {
   return null
 }
 
-// Moves the map to the selected timeline item, then opens its popup if it has a marker.
 function FocusSelection({ selection, events, markerRefs }) {
   const map = useMap()
   useEffect(() => {
@@ -56,10 +54,6 @@ function FocusSelection({ selection, events, markerRefs }) {
   return null
 }
 
-/**
- * `plan` is optional: without one this is just the empty map. `selection` is `{id, fly}`; `fly` is true
- * when the choice came from the timeline, so the map should move, and false when a marker was clicked.
- */
 export default function RouteMap({ plan, markers = [], selection, onSelect, className = '' }) {
   const markerRefs = useRef({})
   const positions = plan?.route.geometry

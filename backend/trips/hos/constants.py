@@ -1,8 +1,4 @@
-"""HOS limits for a property-carrying driver on the 70-hour/8-day schedule.
 
-All durations are in minutes. Sources: FMCSA Interstate Truck Driver's Guide to
-Hours of Service (April 2022) and the assessment's stated assumptions.
-"""
 
 MAX_DRIVING_PER_SHIFT = 11 * 60  # 395.3(a)(3)
 DUTY_WINDOW = 14 * 60  # 395.3(a)(2)

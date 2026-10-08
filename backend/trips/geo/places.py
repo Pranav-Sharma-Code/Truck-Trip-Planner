@@ -28,7 +28,6 @@ class Place:
 
 
 class PlaceIndex:
-    """Nearest-city lookup over a 1-degree grid of places."""
 
     def __init__(self, places):
         self.places = list(places)
@@ -52,7 +51,6 @@ class PlaceIndex:
             )
 
     def nearest(self, lat, lon):
-        """Return (place, distance_miles), or (None, None) if nothing is close."""
         row, col = floor(lat), floor(lon)
         # A cell is at least this wide in miles, which tells us when a ring can't beat the best so far.
         cell_miles = max(1.0, 69.0 * cos(radians(min(abs(lat), 80))))
@@ -72,7 +70,6 @@ class PlaceIndex:
         return best, best_distance
 
     def within(self, lat, lon, radius_miles):
-        """All places within `radius_miles`, as (place, distance_miles) pairs."""
         cell_miles = max(1.0, 69.0 * cos(radians(min(abs(lat), 80))))
         reach = int(radius_miles // cell_miles) + 2
         row, col = floor(lat), floor(lon)
@@ -86,11 +83,6 @@ class PlaceIndex:
         return found
 
     def locate(self, lat, lon):
-        """Best "City, ST" for a point: (place, distance_miles), or (None, None).
-
-        The closest place is often a neighbourhood ("Chicago Loop"), so among the places
-        within a few miles of the closest one, the most populous wins ("Chicago").
-        """
         closest, distance = self.nearest(lat, lon)
         if closest is None:
             return None, None

@@ -1,7 +1,5 @@
 import { STATUS_ORDER } from './dutyStatus'
 
-// Layout of one log sheet, in SVG units. The grid follows the FMCSA graph grid: 24 hours across
-// (midnight to midnight) and four duty-status rows.
 export const SHEET_WIDTH = 1000
 export const MINUTES_PER_DAY = 24 * 60
 
@@ -38,10 +36,7 @@ export function gridTicks() {
   }))
 }
 
-/**
- * The duty line as the driver would draw it: one horizontal stroke per segment, joined by vertical
- * strokes where the status changes.
- */
+
 export function dutyLine(segments) {
   const horizontals = segments.map((segment) => ({
     status: segment.status,
@@ -59,13 +54,11 @@ export function dutyLine(segments) {
   return { horizontals, connectors }
 }
 
-/** Minutes as H:MM, which always adds up exactly (24:00 for a full day). */
 export function formatLogHours(minutes) {
   const total = Math.round(minutes)
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`
 }
 
-/** Splits 'YYYY-MM-DD' into the month, day and year written at the top of the sheet. */
 export function dateParts(isoDate) {
   const [year, month, day] = isoDate.split('-')
   return { month, day, year }
@@ -73,10 +66,6 @@ export function dateParts(isoDate) {
 
 const LEVEL_SPACING = 16
 
-/**
- * Numbered remark markers under the grid. Markers that would overlap sit on a second level so
- * every number stays readable.
- */
 export function placeRemarkMarkers(remarks) {
   let previous = null
   return remarks.map((remark, index) => {

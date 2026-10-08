@@ -47,13 +47,15 @@ export default function TripSummary({ plan }) {
       }
     >
       <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <Stat label="Distance" value={formatMiles(summary.total_miles)} sub={`${formatHours(summary.driving_hours)} driving`} />
+        <Stat label="Distance" value={formatMiles(summary.total_miles)} 
+              sub={`${formatHours(summary.driving_hours)} driving`} />
         <Stat
           label="Trip duration"
           value={formatHours(summary.trip_hours)}
           sub={`Arrive ${formatDate(summary.arrival)}, ${formatTime(summary.arrival)}`}
         />
-        <Stat label="Log sheets" value={summary.log_sheets} sub={summary.log_sheets === 1 ? 'one day' : 'days on the road'} />
+        <Stat label="Log sheets" value={summary.log_sheets} 
+              sub={summary.log_sheets === 1 ? 'one day' : 'days on the road'} />
         <Stat
           label="Cycle used"
           value={`${formatHours(summary.cycle_used_start_hours)} → ${formatHours(summary.cycle_used_end_hours)}`}

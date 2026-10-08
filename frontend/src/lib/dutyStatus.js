@@ -1,4 +1,3 @@
-// Row order matches the log sheet: Off Duty, Sleeper Berth, Driving, On Duty (not driving).
 export const STATUS_ORDER = ['OFF_DUTY', 'SLEEPER_BERTH', 'DRIVING', 'ON_DUTY_NOT_DRIVING']
 
 export const STATUS_LABELS = {

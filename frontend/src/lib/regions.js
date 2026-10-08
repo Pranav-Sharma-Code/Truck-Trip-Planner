@@ -1,6 +1,4 @@
-// States, provinces and similar first-level regions for countries where a pick list helps.
-// Other countries get a free-text field. Names are the common English ones, which is what the
-// geocoder matches best.
+
 export const REGIONS = {
   IN: [
     'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Goa', 'Gujarat', 'Haryana',

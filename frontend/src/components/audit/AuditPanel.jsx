@@ -4,7 +4,6 @@ import { EVENT_TYPES } from '../../lib/eventTypes'
 import { formatDate, formatDuration, formatTime } from '../../lib/format'
 import Card from '../ui/Card'
 
-// Limits as the clock counts them (minutes, miles). A cell turns amber when its counter is at the limit.
 const COLUMNS = [
   { key: 'driving_minutes_in_shift', label: 'Driving since rest', limit: 11 * 60, show: (v) => `${formatDuration(v)} / 11 h` },
   { key: 'window_elapsed_minutes', label: '14-hour window', limit: 14 * 60, show: (v) => `${formatDuration(v)} / 14 h` },

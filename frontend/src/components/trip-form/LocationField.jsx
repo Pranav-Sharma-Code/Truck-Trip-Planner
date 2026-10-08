@@ -20,11 +20,7 @@ function Labelled({ id, label, hint, children }) {
   )
 }
 
-/**
- * One place on the trip. The main box takes a city, town or address; the "Add ..." panel adds a
- * country, state, district and postal code. Their names, the state list and the postal-code rule
- * follow the country, so for India it asks for State / UT, District and PIN code.
- */
+
 export default function LocationField({ locKey, label, value, tripCountry, placeError, postalError, onChange, onBlur }) {
   const [userOpen, setUserOpen] = useState(null) // null: open by itself whenever something is filled in
   const code = effectiveCountry(value, tripCountry)

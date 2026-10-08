@@ -3,7 +3,6 @@ import { formatDuration, formatTimeRange } from './format'
 
 export const START_ID = 'start'
 
-/** Map markers for a plan: the start, then every stop that is not plain driving. */
 export function buildMarkers(plan) {
   const start = plan.locations.current
   const markers = [
@@ -32,7 +31,6 @@ export function buildMarkers(plan) {
   return markers
 }
 
-/** Events grouped by the calendar day they start on, in trip time. */
 export function groupEventsByDay(events) {
   const days = []
   for (const event of events) {
@@ -44,7 +42,6 @@ export function groupEventsByDay(events) {
   return days
 }
 
-/** Where to point the map for an event: its marker if it has one, else the stretch of road it covers. */
 export function eventBounds(event) {
   return [
     [event.location.lat, event.location.lon],

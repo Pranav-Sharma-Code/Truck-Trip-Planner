@@ -8,11 +8,10 @@ function readStored() {
   try {
     return parsePreference(localStorage.getItem(THEME_STORAGE_KEY))
   } catch {
-    return 'system' // storage can be blocked, for example in a private window
+    return 'system' 
   }
 }
 
-/** Theme choice (light, dark, system), kept in this browser and applied to <html data-theme>. */
 export function useTheme() {
   const [preference, setPreference] = useState(readStored)
   const [systemDark, setSystemDark] = useState(() => window.matchMedia(QUERY).matches)
@@ -35,7 +34,7 @@ export function useTheme() {
       if (next === 'system') localStorage.removeItem(THEME_STORAGE_KEY)
       else localStorage.setItem(THEME_STORAGE_KEY, next)
     } catch {
-      // Not being able to remember the choice is fine; it still applies for this visit.
+      
     }
   }, [])
 

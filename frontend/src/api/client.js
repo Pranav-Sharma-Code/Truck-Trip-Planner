@@ -1,6 +1,5 @@
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').replace(/\/$/, '')
 
-// Planning can take a while on a cold server, so this is generous.
 const PLAN_TIMEOUT_MS = 120_000
 
 export class ApiError extends Error {
@@ -38,7 +37,6 @@ async function request(path, { timeoutMs = 30_000, signal, ...options } = {}) {
   try {
     body = await response.json()
   } catch {
-    // Non-JSON error pages (proxy errors, etc.) fall through to the generic message below.
   }
 
   if (!response.ok) {

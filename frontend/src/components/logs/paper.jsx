@@ -1,5 +1,3 @@
-// The log sheet is "paper": fixed colours that do not change with the page theme, so it looks and
-// prints the same in light and dark mode.
 export const PAPER = {
   bg: '#ffffff',
   ink: '#121826',
@@ -21,7 +19,6 @@ export function Lines({ x, y, lines, size = 9, gap = 11, anchor = 'start', weigh
   )
 }
 
-/** A value written on a line, with a small caption underneath, like the blanks on the paper form. */
 export function Field({ x1: left, x2: right, y: baseline, value, caption, align = 'start', size = 12 }) {
   // Positions arrive as numbers or numeric strings; do the arithmetic on numbers.
   const [x1, x2, y] = [Number(left), Number(right), Number(baseline)]

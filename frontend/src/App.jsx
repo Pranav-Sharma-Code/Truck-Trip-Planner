@@ -23,7 +23,6 @@ export default function App() {
     run(request)
   }
 
-  // A new plan starts with nothing selected on the map or timeline.
   const planKey = plan ? `${plan.summary.start}|${plan.summary.arrival}|${plan.summary.total_miles}` : 'empty'
 
   return (

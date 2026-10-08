@@ -20,12 +20,14 @@ export default function LogDetailsForm({ details, onChange }) {
           Sheet details
           <span className="ml-2 text-xs font-normal text-muted">carrier, vehicle, shipment (saved in this browser)</span>
         </span>
-        <ChevronDown size={16} className="text-muted transition group-open:rotate-180" aria-hidden="true" />
+        <ChevronDown size={16} 
+                     className="text-muted transition group-open:rotate-180" aria-hidden="true" />
       </summary>
       <div className="grid gap-3 border-t border-line p-4 sm:grid-cols-2">
         {FIELDS.map(({ name, label, placeholder }) => (
           <div key={name}>
-            <label htmlFor={`log-${name}`} className="mb-1 block text-xs font-medium text-muted">
+            <label htmlFor={`log-${name}`} 
+                   className="mb-1 block text-xs font-medium text-muted">
               {label}
             </label>
             <input

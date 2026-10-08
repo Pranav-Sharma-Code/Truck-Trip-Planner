@@ -12,7 +12,6 @@ export function remarkRowCount(remarks) {
 // Top of the remarks list, below the numbered markers.
 export const REMARKS_LIST_TOP = GRID_BOTTOM + 92
 
-/** Numbered markers under the grid at every change of duty status, and the list that explains them. */
 export default function LogRemarks({ remarks }) {
   const markers = placeRemarkMarkers(remarks)
   const rows = remarkRowCount(remarks)

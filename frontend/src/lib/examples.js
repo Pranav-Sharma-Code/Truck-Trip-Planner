@@ -1,4 +1,3 @@
-// Each example fills the whole form: the trip's country, the three places and the cycle hours.
 export const EXAMPLE_TRIPS = [
   {
     name: 'Short trip',

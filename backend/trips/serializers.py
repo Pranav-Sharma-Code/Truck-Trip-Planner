@@ -8,7 +8,6 @@ COUNTRY_PATTERN = r"^[A-Za-z]{2}$"
 
 
 class AddressPartsField(serializers.DictField):
-    """{"place", "area", "region", "postal"}: each a short string, any subset."""
 
     ALLOWED = {"place", "area", "region", "postal"}
 

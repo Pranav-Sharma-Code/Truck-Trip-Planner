@@ -1,6 +1,5 @@
 import { panelId, tabId } from './tabIds'
 
-/** Tab bar. Panels are rendered by the caller (kept mounted, hidden when inactive) using `panelId`. */
 
 export default function Tabs({ tabs, value, onChange, label }) {
   const move = (event, index) => {

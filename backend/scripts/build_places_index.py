@@ -1,12 +1,4 @@
-"""Build trips/data/places.csv from a GeoNames dump (cities5000.txt).
 
-Usage:
-    python scripts/build_places_index.py path/to/cities5000.txt
-
-Every country is included. US places carry their state abbreviation; other places are labelled with
-their ISO country code. Data: GeoNames (https://www.geonames.org), licensed CC BY 4.0.
-Download: https://download.geonames.org/export/dump/cities5000.zip
-"""
 
 import csv
 import sys

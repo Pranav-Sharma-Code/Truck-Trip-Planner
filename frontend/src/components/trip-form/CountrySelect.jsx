@@ -1,7 +1,6 @@
 import { countryOptions } from '../../lib/countries'
 import { inputClass } from '../ui/inputStyles'
-
-/** A country pick list: the most used countries first, then everyone else. `emptyLabel` is the "none" choice. */
+ 
 export default function CountrySelect({ id, value, onChange, emptyLabel, ariaLabel }) {
   const { common, all } = countryOptions()
   return (

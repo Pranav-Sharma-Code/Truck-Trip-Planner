@@ -10,7 +10,6 @@ logger = logging.getLogger(__name__)
 
 
 def _first_error(detail, field=None):
-    """Return (field, message) for the first error in a DRF error structure."""
     if isinstance(detail, dict):
         for key, value in detail.items():
             return _first_error(value, field or key)  # keep the outermost field name
@@ -20,7 +19,6 @@ def _first_error(detail, field=None):
 
 
 def api_exception_handler(exc, context):
-    """Every error leaves the API as {"code", "message", "field"?}."""
     if isinstance(exc, PlannerError):
         body = {"code": exc.code, "message": exc.message}
         if exc.field:

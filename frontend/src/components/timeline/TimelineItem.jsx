@@ -9,7 +9,6 @@ export default function TimelineItem({ event, selected, scrollIntoView, onSelect
   const isDrive = event.type === 'DRIVE'
   const rule = ruleLabel(event.rule)
 
-  // A marker click selects the item without moving the map; bring the item into view instead.
   useEffect(() => {
     if (selected && scrollIntoView) ref.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
   }, [selected, scrollIntoView])

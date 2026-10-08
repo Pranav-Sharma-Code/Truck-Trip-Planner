@@ -1,9 +1,3 @@
-"""Re-checks a finished event list against the HOS limits.
-
-Deliberately does not reuse HosClock: it looks backwards through the events
-from each driving block, so a bug in the scheduler's running counters cannot
-hide itself here.
-"""
 
 from . import constants as c
 from .models import OFF_STATUSES, DutyStatus, EventType, Violation
@@ -16,7 +10,6 @@ def _minutes(delta):
 
 
 def _runs(spans, predicate):
-    """Merge back-to-back spans matching `predicate` into (start, end) runs."""
     runs = []
     for start, end, event in spans:
         if not predicate(event):

@@ -1,6 +1,4 @@
 const pad = (n) => String(n).padStart(2, '0')
-
-/** Value for a datetime-local input: now, rounded up to the next quarter hour, in local time. */
 export function defaultStartValue(now = new Date()) {
   const rounded = new Date(now)
   rounded.setSeconds(0, 0)
@@ -8,10 +6,6 @@ export function defaultStartValue(now = new Date()) {
   return `${rounded.getFullYear()}-${pad(rounded.getMonth() + 1)}-${pad(rounded.getDate())}T${pad(rounded.getHours())}:${pad(rounded.getMinutes())}`
 }
 
-/**
- * 'YYYY-MM-DDTHH:mm' (local time) to an ISO timestamp with the local UTC offset, which is what
- * the API needs. Returns null if the value is not a real date and time.
- */
 export function toIsoWithOffset(value) {
   const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value)
   if (!match) return null

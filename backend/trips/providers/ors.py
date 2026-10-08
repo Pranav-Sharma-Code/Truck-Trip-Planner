@@ -1,4 +1,3 @@
-"""OpenRouteService client: geocoding and heavy-goods-vehicle routing."""
 
 import requests
 
@@ -8,14 +7,12 @@ from .base import GeocodedLocation, RouteLeg, RouteResult
 METERS_PER_MILE = 1609.344
 DEFAULT_BASE_URL = "https://api.openrouteservice.org"
 CACHE_LIMIT = 500
-ORS_DISTANCE_LIMIT = 2004  # route longer than 6,000 km
-ORS_NO_ROUTE = (2009, 2010)  # route not found / no routable point near a coordinate
+ORS_DISTANCE_LIMIT = 2004  
+ORS_NO_ROUTE = (2009, 2010)  
 
 
-# Result layers coarser than a city. For a typed place these mean "could not match the details".
 COARSE_LAYERS = {"region", "macroregion", "dependency", "country", "continent", "empire", "ocean", "marinearea"}
 
-# Which address parts to combine, most specific first. Each search drops detail that may not match.
 QUERY_COMBINATIONS = (
     ("place", "area", "region", "postal"),
     ("place", "region", "postal"),
@@ -33,14 +30,13 @@ QUERY_COMBINATIONS = (
 
 
 def search_queries(text, parts):
-    """Search texts to try, most specific first. Without `parts` it is just `text`."""
     if not parts:
         return [text]
     clean = {name: (parts.get(name) or "").strip() for name in ("place", "area", "region", "postal")}
     queries = [text]
     for combination in QUERY_COMBINATIONS:
         if combination[0] != "place" and clean["place"]:
-            continue  # only worth it when no place was typed
+            continue 
         if any(not clean[name] for name in combination):
             continue
         query = ", ".join(clean[name] for name in combination)
@@ -64,13 +60,7 @@ class OrsClient:
         self._geocode_cache = {}
 
     def geocode(self, text, country=None, parts=None):
-        """Find a place.
-
-        `country` (ISO alpha-2, optional) limits the search to that country. `parts` is the address
-        split into place, area, region and postal; with it the most specific search is tried first and
-        looser ones after, because a free-text search that cannot match every part can fall back to just
-        the state or country.
-        """
+       
         key = (" ".join(text.lower().split()), country)
         if key in self._geocode_cache:
             return self._geocode_cache[key]
@@ -82,7 +72,7 @@ class OrsClient:
             if feature is None:
                 continue
             if feature["properties"].get("layer") in COARSE_LAYERS and query != queries[-1]:
-                too_coarse = too_coarse or feature  # keep it in case nothing better turns up
+                too_coarse = too_coarse or feature 
                 continue
             accepted = feature
             break
@@ -115,7 +105,6 @@ class OrsClient:
         return feature
 
     def route(self, points):
-        """Route through (lat, lon) points; consecutive identical points become zero-length legs."""
         if len(points) < 2:
             raise ValueError("a route needs at least two points")
 
@@ -135,8 +124,6 @@ class OrsClient:
             "/v2/directions/driving-hgv/geojson",
             json={
                 "coordinates": [[lon, lat] for lat, lon in waypoints],
-                # Instructions stay on: without them the response has no per-leg distances and durations.
-                # -1 lets the router snap city-centre coordinates to the nearest road at any distance.
                 "radiuses": [-1] * len(waypoints),
             },
         )

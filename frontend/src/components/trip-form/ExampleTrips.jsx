@@ -11,7 +11,18 @@ export default function ExampleTrips({ onPick, disabled }) {
             type="button"
             disabled={disabled}
             onClick={() => onPick(example.values)}
-            className="rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-medium text-ink transition hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-full 
+                       border 
+                       border-line 
+                       bg-surface 
+                       px-3 py-1.5 
+                       text-xs 
+                       font-medium 
+                       text-ink 
+                       transition 
+                       hover:bg-surface-2 
+                       disabled:cursor-not-allowed 
+                       disabled:opacity-60"
           >
             {example.name}
           </button>

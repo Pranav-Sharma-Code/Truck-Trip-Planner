@@ -5,9 +5,6 @@ import { checkHealth } from '../api/client'
 const SLOW_AFTER_MS = 4000
 
 /**
- * Pings the API when the page loads. Free hosting puts idle servers to sleep, so this also
- * wakes it while the user is still filling in the form.
- *
  * @returns {'checking'|'waking'|'online'|'offline'}
  */
 export function useApiStatus() {

@@ -5,8 +5,6 @@ import { toIsoWithOffset } from './startTime'
 export const MAX_LOCATION_LENGTH = 200
 export const MAX_CYCLE_HOURS = 70
 
-// Input ids double as error keys. A place's main field keeps the API's field name (`pickup_location`)
-// so a server error about that place lands on the right input.
 export const placeName = (key) => `${key}_location`
 export const postalName = (key) => `${key}_postal`
 
@@ -16,7 +14,6 @@ const FIELD_NAMES = [
   'start_time',
 ]
 
-// Mirrors the API rules so mistakes show up as the user types; the API still checks everything.
 export function validateField(name, values) {
   const key = LOCATION_KEYS.find((candidate) => name === placeName(candidate) || name === postalName(candidate))
 
@@ -53,7 +50,6 @@ export function validateTrip(values) {
   return errors
 }
 
-/** Form values to the API request body. Countries are sent as ISO codes when one applies. */
 export function toRequest(values) {
   const request = { current_cycle_used_hours: Number(values.current_cycle_used_hours) }
   for (const key of LOCATION_KEYS) {
@@ -61,8 +57,6 @@ export function toRequest(values) {
     const country = effectiveCountry(values[key], values.country)
     if (country) request[`${key}_country`] = country
 
-    // With details filled in, also send the parts so the server can fall back to a looser search
-    // if the full address does not match (a free-text search can collapse to just the state).
     const { place, area, region, postal } = values[key]
     if (area.trim() || region.trim() || postal.trim()) {
       request[`${key}_parts`] = { place: place.trim(), area: area.trim(), region: region.trim(), postal: postal.trim() }

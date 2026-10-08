@@ -1,6 +1,5 @@
 import { Coffee, Flag, Fuel, Moon, Package, RotateCw, Truck } from 'lucide-react'
 
-// One place that says how each kind of stop looks, shared by the map, legend and timeline.
 export const EVENT_TYPES = {
   DRIVE: { label: 'Driving', color: 'var(--status-driving)', icon: Truck },
   PICKUP: { label: 'Pickup', color: 'var(--accent)', icon: Package, pin: 'B' },
@@ -13,7 +12,6 @@ export const EVENT_TYPES = {
 
 export const START_MARKER = { label: 'Start', color: 'var(--ink)', pin: 'A' }
 
-// Stops worth a map marker. Driving is the line itself.
 export const MARKER_TYPES = ['PICKUP', 'DROPOFF', 'FUEL', 'BREAK', 'REST', 'RESTART']
 
 export function ruleLabel(rule) {

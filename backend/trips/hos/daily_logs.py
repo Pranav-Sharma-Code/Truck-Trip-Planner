@@ -1,9 +1,4 @@
-"""Cut a trip's events into one 24-hour log sheet per calendar day.
 
-Calendar days follow the timezone of the events (the home terminal time the
-planner chose). Time before the first event and after the last one is logged
-as off duty so every sheet covers exactly 1,440 minutes.
-"""
 
 from datetime import timedelta
 

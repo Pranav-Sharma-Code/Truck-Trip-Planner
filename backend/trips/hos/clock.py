@@ -3,12 +3,6 @@ from .models import DutyStatus
 
 
 class HosClock:
-    """Tracks the driver's HOS counters as duty statuses are applied.
-
-    Two streaks drive the resets: any run of non-driving time (30-minute break,
-    which may mix on-duty and off-duty) and the run of off-duty/sleeper time
-    (10-hour and 34-hour resets).
-    """
 
     def __init__(self, cycle_used_minutes=0):
         self.now = 0

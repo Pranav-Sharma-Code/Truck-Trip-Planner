@@ -1,7 +1,5 @@
 import { REGIONS } from './regions'
 
-// ISO 3166-1 alpha-2 codes. Names come from the browser (Intl.DisplayNames), so they are
-// localised and never go out of date.
 const ALL_CODES =
   'AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ ' +
   'CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO ' +
@@ -40,8 +38,6 @@ export function countryOptions() {
   return options
 }
 
-// What each part of an address is called depends on the country. A `null` postal profile means the
-// country has no postal code system, so the field is hidden.
 const DEFAULT_PROFILE = {
   regionLabel: 'State / province / region',
   regionShort: 'region',
@@ -129,12 +125,10 @@ const PROFILES = {
   HK: { postal: null },
 }
 
-/** Field labels, pick list and postal rule for a country code ('' means no country chosen). */
 export function getProfile(code) {
   return { ...DEFAULT_PROFILE, ...PROFILES[code], regions: REGIONS[code] ?? null, code: code || '' }
 }
 
-/** Error message for a postal code, or null if it is empty or fine for this country. */
 export function postalError(code, value) {
   const text = value.trim()
   const { postal } = getProfile(code)
@@ -143,7 +137,6 @@ export function postalError(code, value) {
   return `Enter a valid ${postal.label}, for example ${postal.example}`
 }
 
-/** "Add state, district & PIN code": the button text that opens the extra address fields. */
 export function detailsLabel(code) {
   const { regionShort, areaShort, postal } = getProfile(code)
   const parts = [regionShort, areaShort, postal?.short].filter(Boolean)

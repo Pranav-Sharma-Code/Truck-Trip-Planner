@@ -1,5 +1,5 @@
 class PlannerError(Exception):
-    """An expected failure that the API turns into a clean JSON error."""
+  
 
     status = 500
     code = "planner_error"

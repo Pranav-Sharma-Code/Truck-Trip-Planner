@@ -1,6 +1,5 @@
 @import "tailwindcss";
 
-/* Colours are tokens so light and dark share one set of utilities. */
 :root {
   --page: #f5f6f8;
   --surface: #ffffff;
@@ -20,7 +19,6 @@
   --danger: #b42318;
   --danger-soft: #fdecea;
 
-  /* One colour per duty status, used by the map, timeline and log sheets. */
   --status-driving: #2563eb;
   --status-on-duty: #d97706;
   --status-off-duty: #64748b;
@@ -31,8 +29,6 @@
   color-scheme: light;
 }
 
-/* The theme is chosen in the header (light, dark or system). A small script in index.html and the
-   useTheme hook set data-theme on <html> to "light" or "dark", so only that attribute is needed here. */
 :root[data-theme='dark'] {
   --page: #0e1218;
   --surface: #161b23;
@@ -100,8 +96,6 @@ body {
   outline-offset: 2px;
 }
 
-/* OpenStreetMap has no dark style, so dim and invert its tiles in dark mode. Markers and the route line sit
-   in other panes and keep their colours. */
 :root[data-theme='dark'] .leaflet-tile-pane {
   filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.92) saturate(0.7);
 }
@@ -111,7 +105,6 @@ body {
   background: var(--surface-2);
 }
 
-/* Route line and stop markers use the same tokens as the rest of the page. */
 .route-line {
   stroke: var(--accent);
   stroke-linecap: round;
@@ -148,7 +141,6 @@ body {
   margin: 12px 14px;
 }
 
-/* Printing: only the log sheets, one per letter page. */
 @page {
   size: letter portrait;
   margin: 0.4in;
