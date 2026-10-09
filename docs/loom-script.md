@@ -24,7 +24,9 @@ hours-of-service rules require, and draws the daily log sheets."
 
 Open **Daily logs**. Show day 1 and a middle day: the 24-hour grid, the duty line with its vertical connectors, the
 totals that add to 24:00, the numbered remarks, the recap. Type a carrier name in **Sheet details** to show it appear.
-Mention print or save as PDF, one sheet per page.
+Click **Edit this day**, move a time and change a status: the sheet redraws, the summary shows how this day differs from
+the plan (with the plan as a dashed orange line), and the rule check names any rule the edit breaks. Mention **Start blank**
+for filling a day in by hand, and print or save as PDF, one sheet per page.
 
 ## 2:45 – How it works (1 min)
 
@@ -38,7 +40,7 @@ Mention print or save as PDF, one sheet per page.
 
 ## 3:45 – Testing and honesty (45 s)
 
-- 206 backend tests and 73 frontend tests. Edge cases: exactly 8 and 11 hours, the 14-hour window, cycle near 70,
+- 227 backend tests and 98 frontend tests. Edge cases: exactly 8 and 11 hours, the 14-hour window, cycle near 70,
   fuel at 999, 1,000 and 1,001 miles. 300 random trips must all pass the validator.
 - The validator re-checks a finished plan by looking backwards, so a bug in the scheduler's counters cannot hide.
 - Limits: a 30-minute fuel stop is my assumption; a fully rested start; no traffic or weather; the provider's truck

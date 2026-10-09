@@ -21,7 +21,9 @@ def _runs(spans, predicate):
     return runs
 
 
-def validate(events, cycle_used_minutes=0):
+def validate(events, cycle_used_minutes=0, check_fuel=True):
+    """Return the violations in `events`. A hand-written log has no fuel stops or mileage between them,
+    so it is checked with `check_fuel=False`."""
     if not events:
         return []
 
@@ -85,6 +87,8 @@ def validate(events, cycle_used_minutes=0):
         if base + on_duty > c.CYCLE_LIMIT:
             violations.append(Violation("cycle_70h", "Driving past the 70-hour cycle limit.", event.id))
 
+        if not check_fuel:
+            continue
         last_fuel_mile = max(
             (e.end_mile for e in events if e.type is EventType.FUEL and e.end <= event.start),
             default=0.0,

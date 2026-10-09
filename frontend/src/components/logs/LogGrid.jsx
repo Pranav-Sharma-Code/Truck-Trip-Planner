@@ -16,9 +16,12 @@ import { PAPER } from './paper'
 const TICK_HEIGHT = { hour: GRID.rowHeight, half: 14, quarter: 8 }
 const ROW_NUMBERS = { OFF_DUTY: 1, SLEEPER_BERTH: 2, DRIVING: 3, ON_DUTY_NOT_DRIVING: 4 }
 const TOTAL_X = GRID_RIGHT + 14
+const GHOST = '#d97706'
 
-export default function LogGrid({ log }) {
+// `plannedSegments` (optional) draws the plan as a dashed ghost line under the actual line, on screen only.
+export default function LogGrid({ log, plannedSegments }) {
   const { horizontals, connectors } = dutyLine(log.segments)
+  const ghost = plannedSegments ? dutyLine(plannedSegments) : null
   const ticks = gridTicks()
 
   return (
@@ -89,6 +92,17 @@ export default function LogGrid({ log }) {
       <text x={TOTAL_X + 90} y={GRID_BOTTOM + 18} fontSize="13" fontWeight="bold" textAnchor="end" fill={PAPER.ink}>
         = {formatLogHours(STATUS_ORDER.reduce((sum, status) => sum + log.totals_minutes[status], 0))}
       </text>
+
+      {ghost && (
+        <g className="planned-ghost" stroke={GHOST} strokeWidth="2.5" strokeDasharray="6 4" fill="none" data-testid="planned-line">
+          {ghost.horizontals.map((h, index) => (
+            <line key={`gh${index}`} x1={h.x1} y1={h.y} x2={h.x2} y2={h.y} />
+          ))}
+          {ghost.connectors.map((c, index) => (
+            <line key={`gc${index}`} x1={c.x} y1={c.y1} x2={c.x} y2={c.y2} strokeWidth="1.5" />
+          ))}
+        </g>
+      )}
 
       {/* the duty line */}
       <g stroke={PAPER.ink} strokeWidth="3" strokeLinecap="square" fill="none" data-testid="duty-line">

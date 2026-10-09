@@ -22,6 +22,50 @@ class AddressPartsField(serializers.DictField):
         return value
 
 
+DUTY_STATUSES = ("OFF_DUTY", "SLEEPER_BERTH", "DRIVING", "ON_DUTY_NOT_DRIVING")
+MINUTES_PER_DAY = 24 * 60
+
+
+class LogSegmentSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=DUTY_STATUSES)
+    start_minute = serializers.IntegerField(min_value=0, max_value=MINUTES_PER_DAY - 1)
+    end_minute = serializers.IntegerField(min_value=1, max_value=MINUTES_PER_DAY)
+
+
+class LogDaySerializer(serializers.Serializer):
+    date = serializers.DateField()
+    segments = LogSegmentSerializer(many=True, allow_empty=False, max_length=96)
+
+    def validate_segments(self, segments):
+        """A day sheet covers midnight to midnight with no gaps or overlaps."""
+        expected = 0
+        for segment in segments:
+            if segment["start_minute"] != expected or segment["end_minute"] <= segment["start_minute"]:
+                raise serializers.ValidationError(
+                    "Segments must run from 00:00 to 24:00 in order, with no gaps or overlaps."
+                )
+            expected = segment["end_minute"]
+        if expected != MINUTES_PER_DAY:
+            raise serializers.ValidationError("Segments must run from 00:00 to 24:00.")
+        return segments
+
+
+class LogCheckSerializer(serializers.Serializer):
+    """An edited set of daily logs, to be checked against the hours-of-service rules."""
+
+    utc_offset = serializers.RegexField(r"^[+-]\d{2}:\d{2}$")
+    cycle_used_start_hours = serializers.FloatField(min_value=0, max_value=70, default=0)
+    days = LogDaySerializer(many=True, allow_empty=False, max_length=31)
+
+    def validate_days(self, days):
+        dates = [day["date"] for day in days]
+        if dates != sorted(set(dates)) or any(
+            (later - earlier).days != 1 for earlier, later in zip(dates, dates[1:])
+        ):
+            raise serializers.ValidationError("Days must be consecutive calendar dates, in order.")
+        return days
+
+
 class TripRequestSerializer(serializers.Serializer):
     current_location = serializers.CharField(max_length=MAX_LOCATION_LENGTH)
     pickup_location = serializers.CharField(max_length=MAX_LOCATION_LENGTH)

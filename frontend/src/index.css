@@ -147,6 +147,10 @@ body {
 }
 
 @media print {
+  .planned-ghost {
+    display: none;
+  }
+
   html,
   body {
     background: #ffffff !important;

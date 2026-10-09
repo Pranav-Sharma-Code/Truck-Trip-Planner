@@ -3,7 +3,8 @@ from rest_framework.response import Response
 
 from .geo.places import get_place_index
 from .providers import get_fuel_finder, get_providers
-from .serializers import TripRequestSerializer
+from .serializers import LogCheckSerializer, TripRequestSerializer
+from .services.log_check import check_logs
 from .services.planner import build_trip_plan
 
 
@@ -23,3 +24,12 @@ def plan_trip(request):
         serializer.validated_data, geocoder, router, get_place_index(), fuel_finder=get_fuel_finder()
     )
     return Response(plan)
+
+
+# Cheap (no outside calls) and called as the driver edits, so it is not rate limited like planning is.
+@api_view(["POST"])
+@throttle_classes([])
+def check_log_edits(request):
+    serializer = LogCheckSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    return Response(check_logs(serializer.validated_data))

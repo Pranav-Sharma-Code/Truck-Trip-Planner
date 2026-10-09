@@ -55,6 +55,20 @@ export function checkHealth(options) {
 }
 
 /**
+ * Checks edited daily logs against the hours-of-service rules.
+ * @param {{utc_offset: string, cycle_used_start_hours: number, days: {date: string, segments: object[]}[]}} logs
+ * @returns {Promise<{ok: boolean, violations: {code: string, message: string, date: string, start_minute: number, end_minute: number}[]}>}
+ */
+export function checkLogs(logs, { signal } = {}) {
+  return request('/api/logs/check/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(logs),
+    signal,
+  })
+}
+
+/**
  * @param {import('./types').TripRequest} trip
  * @returns {Promise<import('./types').TripPlan>}
  */

@@ -7,7 +7,7 @@ import LogRemarks, { REMARK_ROW_HEIGHT, REMARKS_LIST_TOP, remarkRowCount } from 
 import { PAPER } from './paper'
 
 /** One day's Driver's Daily Log, drawn as SVG so it stays sharp when printed. */
-export default function LogSheet({ log, details }) {
+export default function LogSheet({ log, details, plannedSegments }) {
   const footerTop = REMARKS_LIST_TOP + remarkRowCount(log.remarks) * REMARK_ROW_HEIGHT + 24
   const height = footerTop + FOOTER_HEIGHT
   const label = `Driver's daily log for ${formatDate(log.date)}`
@@ -23,7 +23,7 @@ export default function LogSheet({ log, details }) {
       <title>{label}</title>
       <rect width={SHEET_WIDTH} height={height} fill={PAPER.bg} />
       <LogHeader log={log} details={details} />
-      <LogGrid log={log} />
+      <LogGrid log={log} plannedSegments={plannedSegments} />
       <LogRemarks remarks={log.remarks} />
       <LogFooter log={log} details={details} top={footerTop} />
     </svg>

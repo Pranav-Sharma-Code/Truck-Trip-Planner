@@ -42,6 +42,9 @@ The application follows a client-server architecture.
 * Automatic fuel stops, breaks, and rest scheduling.
 * HOS rule validation.
 * Daily log sheet generation.
+* Editable daily logs: change times, statuses and places, or fill a day in by hand from a blank sheet.
+* Deviation tracking: every difference from the planned log is shown (hours per duty status, miles, the exact stretches and places that differ), with the plan drawn as a dashed line on the sheet.
+* Rule check of edited logs: edits are re-checked against the HOS rules, and any rule they break is shown with its day and time.
 * Print and save logs as PDF.
 * Trip timeline and summary dashboard.
 * Country-aware address inputs.
@@ -55,12 +58,16 @@ Accepts the current location, pickup location, drop-off location, cycle hours al
 
 Returns route information, scheduled stops, daily logs, trip summaries, compliance results, and warnings.
 
+**Endpoint:** `POST /api/logs/check/`
+
+Accepts a set of daily logs (consecutive days, each running 00:00 to 24:00 as duty-status segments), the UTC offset, and the cycle hours used before the trip. Returns whether the logs follow the HOS rules and, if not, each violation with its day and time. It uses the same validator as the planner, and is used to check logs after they are edited. Edits themselves are kept in the browser, not on the server.
+
 ## Testing
 
-* **Backend:** 206 tests.
-* **Frontend:** 73 tests.
+* **Backend:** 227 tests.
+* **Frontend:** 98 tests.
 
-Tests cover scheduling rules, HOS validation, route handling, daily logs, input validation, and edge cases.
+Tests cover scheduling rules, HOS validation, route handling, daily logs, log editing and deviation tracking, input validation, and edge cases. The daily log builder is also checked against the worked example printed in the FMCSA driver's guide.
 
 ## Setup
 
@@ -114,6 +121,7 @@ Deployment configuration is prepared, but the live hosted application has not ye
 * Trip duration depends on the routing provider's estimates.
 * Routing is subject to API quotas and distance limits.
 * Some advanced HOS exceptions and split-sleeper rules are not implemented.
+* Log edits are stored in the browser for the trip on screen only. Cycle figures on edited days are estimates; the rule check is exact.
 * Fuel station identification depends on OpenStreetMap data availability.
 * Mobile responsiveness has not been fully verified.
 

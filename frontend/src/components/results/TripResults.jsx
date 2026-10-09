@@ -87,7 +87,7 @@ export default function TripResults({ plan, loading }) {
         </Panel>
 
         <Panel id="logs" active={tab === 'logs'}>
-          <LogSheetList logs={plan.daily_logs} />
+          <LogSheetList plan={plan} />
         </Panel>
 
         <Panel id="audit" active={tab === 'audit'}>

@@ -65,3 +65,26 @@ describe('the drawn sheet for the guide example', () => {
     expect(svg).toContain('aria-label="Driver&#x27;s daily log for')
   })
 })
+
+
+describe('the planned line', () => {
+  const planned = example.segments
+  const edited = { ...example, segments: example.segments.map((s) => (s.start_minute === 450 ? { ...s, start_minute: 480 } : s.end_minute === 450 ? { ...s, end_minute: 480 } : s)) }
+
+  it('is drawn as a dashed ghost under the actual line when a plan is given', () => {
+    const html = renderToStaticMarkup(<LogSheet log={edited} details={details} plannedSegments={planned} />)
+    expect(html).toContain('data-testid="planned-line"')
+    expect(html).toContain('class="planned-ghost"')
+    expect(html).toContain('stroke-dasharray="6 4"')
+  })
+
+  it('is absent for a day that matches the plan', () => {
+    expect(renderToStaticMarkup(<LogSheet log={example} details={details} />)).not.toContain('planned-line')
+  })
+
+  it('has the same number of strokes as the plan has segments', () => {
+    const html = renderToStaticMarkup(<LogSheet log={edited} details={details} plannedSegments={planned} />)
+    const ghost = html.slice(html.indexOf('data-testid="planned-line"'), html.indexOf('data-testid="duty-line"'))
+    expect(ghost.split('<line').length - 1).toBeGreaterThanOrEqual(planned.length)
+  })
+})
